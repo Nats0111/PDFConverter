@@ -1,0 +1,6 @@
+Pillow
+pypdf
+markitdown
+ocrmypdf
+tkinterdnd2
+pyinstaller

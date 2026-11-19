@@ -1,7 +1,6 @@
 import shutil
-from pathlib import Path
 
-from markitdown import MarkItDown
+from pathlib import Path
 
 from config import (
     MD_OUTPUT,
@@ -21,37 +20,120 @@ from logger import (
 )
 
 
-md = MarkItDown()
+_markitdown_instance = None
 
 
-def convert_to_markdown(file_path):
+def emit(
+    callback,
+    message,
+    level="INFO",
+    progress=None
+):
+
+    if callback:
+
+        callback(
+            message,
+            level,
+            progress
+        )
+
+
+# =========================================================
+# Lazy MarkItDown initialization
+# =========================================================
+
+def get_markitdown():
+
+    global _markitdown_instance
+
+    if (
+        _markitdown_instance
+        is not None
+    ):
+
+        return (
+            _markitdown_instance
+        )
+
+    try:
+
+        from markitdown import (
+            MarkItDown
+        )
+
+        _markitdown_instance = (
+            MarkItDown()
+        )
+
+        return (
+            _markitdown_instance
+        )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            (
+                "MarkItDown 初始化失敗："
+                f"{error}"
+            )
+        ) from error
+
+
+def convert_to_markdown(
+    file_path,
+    move_source=True,
+    progress_callback=None,
+):
 
     source = Path(file_path)
 
     if not source.exists():
-        return
 
-    if is_temp_file(source):
-        return
+        raise FileNotFoundError(
+            f"找不到檔案：{source}"
+        )
 
-    print()
-    print("=" * 60)
-    print(f"[Markdown] {source.name}")
+    if is_temp_file(
+        source
+    ):
 
-    if not wait_until_ready(source):
+        return None
 
-        print("檔案尚未複製完成，跳過。")
+    emit(
+        progress_callback,
+        f"讀取文件：{source.name}"
+    )
+
+    if not wait_until_ready(
+        source
+    ):
 
         log_skipped(
             "MARKDOWN",
-            f"{source.name} | 檔案尚未準備完成"
+            (
+                f"{source.name} | "
+                "尚未準備完成"
+            )
         )
 
-        return
+        raise RuntimeError(
+            "檔案尚未複製完成。"
+        )
 
     try:
 
-        print("MarkItDown 轉換中...")
+        emit(
+            progress_callback,
+            "初始化 MarkItDown..."
+        )
+
+        md = get_markitdown()
+
+        emit(
+            progress_callback,
+            "正在解析文件..."
+        )
 
         result = md.convert(
             str(source)
@@ -62,51 +144,67 @@ def convert_to_markdown(file_path):
             source.stem + ".md"
         )
 
+        emit(
+            progress_callback,
+            "正在寫入 Markdown..."
+        )
+
         output_file.write_text(
             result.markdown,
             encoding="utf-8"
         )
 
-        print(
-            f"完成：{output_file.name}"
+        if (
+            not output_file.exists()
+        ):
+
+            raise RuntimeError(
+                "沒有成功產生 Markdown。"
+            )
+
+        if move_source:
+
+            processed_file = unique_path(
+                MD_PROCESSED,
+                source.name
+            )
+
+            shutil.move(
+                str(source),
+                str(processed_file)
+            )
+
+        emit(
+            progress_callback,
+            f"輸出：{output_file.name}",
+            "SUCCESS",
+            100
         )
-
-        # =================================================
-        # 原始檔移至 MD_Processed
-        # =================================================
-
-        processed_file = unique_path(
-            MD_PROCESSED,
-            source.name
-        )
-
-        shutil.move(
-            str(source),
-            str(processed_file)
-        )
-
-        print(
-            "原始檔案已移至："
-            f"MD_Processed\\{processed_file.name}"
-        )
-
-        # =================================================
-        # Log
-        # =================================================
 
         log_success(
             "MARKDOWN",
-            f"{source.name} -> {output_file.name}"
+            (
+                f"{source.name} -> "
+                f"{output_file.name}"
+            )
         )
+
+        return output_file
 
     except Exception as error:
 
-        print()
-        print("Markdown 轉換失敗")
-        print(f"檔案：{source.name}")
-        print(f"錯誤：{error}")
+        emit(
+            progress_callback,
+            f"轉換失敗：{error}",
+            "ERROR"
+        )
 
         log_failed(
             "MARKDOWN",
-            f"{source.name} | {error}"
+            (
+                f"{source.name} | "
+                f"{error}"
+            )
         )
+
+        raise

@@ -1,4 +1,6 @@
+import shutil
 import subprocess
+
 from pathlib import Path
 
 from config import (
@@ -23,98 +25,137 @@ from logger import (
 QUALITY_SETTINGS = {
 
     "low": {
-        "ghostscript": "/screen",
-        "name": "強力壓縮",
-        "log_name": "COMPRESS_LOW",
+        "ghostscript":
+            "/screen",
+
+        "name":
+            "強力壓縮",
+
+        "log_name":
+            "COMPRESS_LOW",
     },
 
     "medium": {
-        "ghostscript": "/ebook",
-        "name": "平衡壓縮",
-        "log_name": "COMPRESS_MEDIUM",
+        "ghostscript":
+            "/ebook",
+
+        "name":
+            "平衡壓縮",
+
+        "log_name":
+            "COMPRESS_MEDIUM",
     },
 
     "high": {
-        "ghostscript": "/printer",
-        "name": "高品質",
-        "log_name": "COMPRESS_HIGH",
+        "ghostscript":
+            "/printer",
+
+        "name":
+            "高品質",
+
+        "log_name":
+            "COMPRESS_HIGH",
     },
 }
 
 
-def compress_pdf(
-    file_path,
-    quality="medium"
+def emit(
+    callback,
+    message,
+    level="INFO",
+    progress=None
 ):
 
-    source = Path(file_path)
+    if callback:
+
+        callback(
+            message,
+            level,
+            progress
+        )
+
+
+def compress_pdf(
+    file_path,
+    quality="medium",
+    delete_source=True,
+    progress_callback=None,
+):
+
+    source = Path(
+        file_path
+    )
 
     if not source.exists():
-        return
 
-    if is_temp_file(source):
-        return
-
-    # =====================================================
-    # 檢查 PDF
-    # =====================================================
-
-    if source.suffix.lower() != ".pdf":
-
-        print()
-        print(
-            "[PDF 壓縮] 跳過非 PDF："
-            f"{source.name}"
+        raise FileNotFoundError(
+            f"找不到檔案：{source}"
         )
 
-        log_skipped(
-            "COMPRESS",
-            f"{source.name} | 非 PDF"
+    if is_temp_file(
+        source
+    ):
+
+        return None
+
+    if (
+        source.suffix.lower()
+        != ".pdf"
+    ):
+
+        raise ValueError(
+            "PDF 壓縮只接受 PDF。"
         )
 
-        return
+    if (
+        quality
+        not in QUALITY_SETTINGS
+    ):
 
-    # =====================================================
-    # 檢查品質
-    # =====================================================
-
-    if quality not in QUALITY_SETTINGS:
-
-        print(
+        raise ValueError(
             f"未知壓縮品質：{quality}"
         )
 
-        log_failed(
-            "COMPRESS",
-            f"{source.name} | 未知品質：{quality}"
-        )
-
-        return
-
-    setting = QUALITY_SETTINGS[quality]
-
-    log_name = setting["log_name"]
-
-    print()
-    print("=" * 60)
-
-    print(
-        f"[PDF 壓縮 / {setting['name']}] "
-        f"{source.name}"
+    setting = (
+        QUALITY_SETTINGS[
+            quality
+        ]
     )
 
-    if not wait_until_ready(source):
+    log_name = (
+        setting[
+            "log_name"
+        ]
+    )
 
-        print(
-            "檔案尚未複製完成，跳過。"
+    emit(
+        progress_callback,
+        f"讀取 PDF：{source.name}"
+    )
+
+    emit(
+        progress_callback,
+        (
+            "壓縮模式："
+            f"{setting['name']}"
         )
+    )
+
+    if not wait_until_ready(
+        source
+    ):
 
         log_skipped(
             log_name,
-            f"{source.name} | 檔案尚未準備完成"
+            (
+                f"{source.name} | "
+                "尚未準備完成"
+            )
         )
 
-        return
+        raise RuntimeError(
+            "PDF 尚未準備完成。"
+        )
 
     output_file = None
 
@@ -124,12 +165,27 @@ def compress_pdf(
             source.stat().st_size
         )
 
-        output_file = unique_path(
-            COMPRESS_OUTPUT,
-            source.stem + "_compressed.pdf"
+        original_text = (
+            format_size(
+                original_size
+            )
         )
 
-        print("Ghostscript 處理中...")
+        emit(
+            progress_callback,
+            (
+                "原始大小："
+                f"{original_text}"
+            )
+        )
+
+        output_file = unique_path(
+            COMPRESS_OUTPUT,
+            (
+                source.stem
+                + "_compressed.pdf"
+            )
+        )
 
         command = [
 
@@ -148,185 +204,200 @@ def compress_pdf(
             "-dQUIET",
             "-dBATCH",
 
-            f"-sOutputFile={output_file}",
+            (
+                f"-sOutputFile="
+                f"{output_file}"
+            ),
 
             str(source),
         ]
+
+        emit(
+            progress_callback,
+            "Ghostscript 壓縮中..."
+        )
 
         subprocess.run(
             command,
             check=True
         )
 
-        # =================================================
-        # 驗證輸出
-        # =================================================
-
-        if not output_file.exists():
+        if (
+            not output_file.exists()
+            or
+            output_file.stat().st_size
+            <= 0
+        ):
 
             raise RuntimeError(
-                "Ghostscript 沒有產生輸出 PDF"
+                "Ghostscript 沒有產生有效 PDF。"
             )
 
         compressed_size = (
             output_file.stat().st_size
         )
 
-        if compressed_size <= 0:
-
-            raise RuntimeError(
-                "輸出的 PDF 大小為 0 bytes"
+        compressed_text = (
+            format_size(
+                compressed_size
             )
+        )
+
+        emit(
+            progress_callback,
+            (
+                "壓縮結果："
+                f"{compressed_text}"
+            )
+        )
 
         # =================================================
-        # 計算結果
+        # Compression successful
         # =================================================
 
-        if original_size > 0:
+        if (
+            compressed_size
+            < original_size
+        ):
 
             reduction = (
-                1
-                - compressed_size
-                / original_size
-            ) * 100
+                (
+                    1
+                    - compressed_size
+                    / original_size
+                )
+                * 100
+            )
+
+            emit(
+                progress_callback,
+                (
+                    f"成功減少 "
+                    f"{reduction:.1f}%"
+                ),
+                "SUCCESS",
+                100
+            )
+
+            if delete_source:
+
+                source.unlink()
+
+            log_success(
+                log_name,
+                (
+                    f"{source.name} -> "
+                    f"{output_file.name} | "
+                    f"{original_text} -> "
+                    f"{compressed_text} | "
+                    f"-{reduction:.1f}%"
+                )
+            )
+
+            return {
+                "output":
+                    output_file,
+
+                "compressed":
+                    True,
+
+                "original_size":
+                    original_size,
+
+                "output_size":
+                    compressed_size,
+
+                "reduction":
+                    reduction,
+            }
+
+        # =================================================
+        # Compression not worthwhile
+        # =================================================
+
+        emit(
+            progress_callback,
+            "壓縮後沒有變小",
+            "WARNING",
+            100
+        )
+
+        output_file.unlink()
+
+        if delete_source:
+
+            original_output = (
+                unique_path(
+                    COMPRESS_OUTPUT,
+                    source.name
+                )
+            )
+
+            shutil.move(
+                str(source),
+                str(original_output)
+            )
+
+            output = (
+                original_output
+            )
 
         else:
 
-            reduction = 0
-
-        original_text = format_size(
-            original_size
-        )
-
-        compressed_text = format_size(
-            compressed_size
-        )
-
-        print()
-        print("壓縮完成")
-
-        print(
-            f"原始：{original_text}"
-        )
-
-        print(
-            f"壓縮：{compressed_text}"
-        )
-
-        if reduction > 0:
-
-            print(
-                f"減少：{reduction:.1f}%"
-            )
-
-        elif reduction < 0:
-
-            print(
-                "檔案反而增加："
-                f"{abs(reduction):.1f}%"
-            )
-
-        else:
-
-            print(
-                "檔案大小沒有變化。"
-            )
-
-        print(
-            f"輸出：{output_file.name}"
-        )
-
-        # =================================================
-        # 寫入 Log
-        # =================================================
+            output = None
 
         log_success(
             log_name,
             (
-                f"{source.name} -> "
-                f"{output_file.name} | "
-                f"{original_text} -> "
-                f"{compressed_text} | "
-                f"{reduction:.1f}%"
+                f"{source.name} | "
+                "無需壓縮"
             )
         )
 
-        # =================================================
-        # 成功才刪原始 PDF
-        # =================================================
+        return {
+            "output":
+                output,
 
-        source.unlink()
+            "compressed":
+                False,
 
-        print(
-            "原始 PDF 已刪除："
-            f"{source.name}"
-        )
+            "original_size":
+                original_size,
 
-    except FileNotFoundError:
+            "output_size":
+                original_size,
 
-        message = (
-            f"找不到 Ghostscript："
-            f"{GHOSTSCRIPT}"
-        )
-
-        print()
-        print("PDF 壓縮失敗")
-        print(message)
-        print("原始 PDF 不會刪除。")
-
-        log_failed(
-            log_name,
-            f"{source.name} | {message}"
-        )
-
-        cleanup_failed_output(
-            output_file
-        )
-
-    except subprocess.CalledProcessError as error:
-
-        print()
-        print("Ghostscript 執行失敗")
-        print(f"錯誤：{error}")
-        print("原始 PDF 不會刪除。")
-
-        log_failed(
-            log_name,
-            f"{source.name} | {error}"
-        )
-
-        cleanup_failed_output(
-            output_file
-        )
+            "reduction":
+                0,
+        }
 
     except Exception as error:
 
-        print()
-        print("PDF 壓縮失敗")
-        print(f"錯誤：{error}")
-        print("原始 PDF 不會刪除。")
+        if (
+            output_file
+            and output_file.exists()
+        ):
+
+            try:
+
+                output_file.unlink()
+
+            except OSError:
+
+                pass
+
+        emit(
+            progress_callback,
+            f"壓縮失敗：{error}",
+            "ERROR"
+        )
 
         log_failed(
             log_name,
-            f"{source.name} | {error}"
+            (
+                f"{source.name} | "
+                f"{error}"
+            )
         )
 
-        cleanup_failed_output(
-            output_file
-        )
-
-
-def cleanup_failed_output(
-    output_file
-):
-
-    if (
-        output_file
-        and output_file.exists()
-    ):
-
-        try:
-            output_file.unlink()
-
-        except OSError:
-            pass
+        raise

@@ -18,7 +18,6 @@ from utils import (
 from logger import (
     log_success,
     log_failed,
-    log_skipped,
 )
 
 
@@ -33,148 +32,175 @@ SUPPORTED_IMAGES = {
 }
 
 
-def image_to_pdf(file_path):
+def emit(
+    callback,
+    message,
+    level="INFO",
+    progress=None
+):
 
-    source = Path(file_path)
+    if callback:
+
+        callback(
+            message,
+            level,
+            progress
+        )
+
+
+def image_to_pdf(
+    file_path,
+    delete_source=True,
+    progress_callback=None,
+):
+
+    source = Path(
+        file_path
+    )
 
     if not source.exists():
-        return
 
-    if is_temp_file(source):
-        return
+        raise FileNotFoundError(
+            f"找不到圖片：{source}"
+        )
 
-    # =====================================================
-    # 檢查圖片格式
-    # =====================================================
+    if is_temp_file(
+        source
+    ):
+
+        return None
 
     if (
         source.suffix.lower()
         not in SUPPORTED_IMAGES
     ):
 
-        print()
-        print(
-            "[Image → PDF] "
-            "不支援格式："
-            f"{source.name}"
+        raise ValueError(
+            "不支援的圖片格式。"
         )
-
-        log_skipped(
-            "IMAGE_TO_PDF",
-            (
-                f"{source.name} | "
-                "不支援的圖片格式"
-            )
-        )
-
-        return
-
-    print()
-    print("=" * 60)
-
-    print(
-        f"[Image → PDF] "
-        f"{source.name}"
-    )
-
-    if not wait_until_ready(source):
-
-        print(
-            "檔案尚未複製完成，跳過。"
-        )
-
-        log_skipped(
-            "IMAGE_TO_PDF",
-            (
-                f"{source.name} | "
-                "檔案尚未準備完成"
-            )
-        )
-
-        return
 
     output_file = None
 
     try:
+
+        emit(
+            progress_callback,
+            f"讀取圖片：{source.name}"
+        )
+
+        if not wait_until_ready(
+            source
+        ):
+
+            raise RuntimeError(
+                "圖片尚未準備完成。"
+            )
 
         output_file = unique_path(
             IMAGE_TO_PDF_OUTPUT,
             source.stem + ".pdf"
         )
 
-        print(
-            "圖片轉 PDF 中..."
-        )
+        with Image.open(
+            source
+        ) as image:
 
-        # =================================================
-        # 開啟圖片
-        # =================================================
-
-        with Image.open(source) as image:
-
-            # 處理手機照片旋轉方向
-            image = ImageOps.exif_transpose(
-                image
+            emit(
+                progress_callback,
+                (
+                    f"圖片尺寸："
+                    f"{image.width}"
+                    f" × "
+                    f"{image.height}"
+                )
             )
 
-            # =================================================
-            # RGBA
-            # =================================================
-
-            if image.mode == "RGBA":
-
-                background = Image.new(
-                    "RGB",
-                    image.size,
-                    "white"
+            image = (
+                ImageOps.exif_transpose(
+                    image
                 )
+            )
 
-                background.paste(
-                    image,
-                    mask=image.getchannel("A")
-                )
-
-                image = background
-
-            # =================================================
-            # P / LA
-            # =================================================
-
-            elif image.mode in (
+            if image.mode in (
+                "RGBA",
                 "LA",
-                "P"
             ):
 
-                image = image.convert(
+                rgba = image.convert(
                     "RGBA"
                 )
 
                 background = Image.new(
                     "RGB",
-                    image.size,
+                    rgba.size,
                     "white"
                 )
 
                 background.paste(
-                    image,
-                    mask=image.getchannel("A")
+                    rgba,
+                    mask=rgba.getchannel(
+                        "A"
+                    )
                 )
 
                 image = background
 
-            # =================================================
-            # 其他模式
-            # =================================================
+            elif (
+                image.mode
+                == "P"
+            ):
 
-            elif image.mode != "RGB":
+                if (
+                    "transparency"
+                    in image.info
+                ):
 
-                image = image.convert(
-                    "RGB"
+                    rgba = image.convert(
+                        "RGBA"
+                    )
+
+                    background = Image.new(
+                        "RGB",
+                        rgba.size,
+                        "white"
+                    )
+
+                    background.paste(
+                        rgba,
+                        mask=(
+                            rgba.getchannel(
+                                "A"
+                            )
+                        )
+                    )
+
+                    image = (
+                        background
+                    )
+
+                else:
+
+                    image = (
+                        image.convert(
+                            "RGB"
+                        )
+                    )
+
+            elif (
+                image.mode
+                != "RGB"
+            ):
+
+                image = (
+                    image.convert(
+                        "RGB"
+                    )
                 )
 
-            # =================================================
-            # 儲存 PDF
-            # =================================================
+            emit(
+                progress_callback,
+                "正在建立 PDF..."
+            )
 
             image.save(
                 output_file,
@@ -182,34 +208,27 @@ def image_to_pdf(file_path):
                 resolution=100.0
             )
 
-        # =================================================
-        # 驗證
-        # =================================================
-
-        if not output_file.exists():
-
-            raise RuntimeError(
-                "沒有產生 PDF"
-            )
-
-        output_size = (
+        if (
+            not output_file.exists()
+            or
             output_file.stat().st_size
-        )
-
-        if output_size <= 0:
+            <= 0
+        ):
 
             raise RuntimeError(
-                "產生的 PDF 大小為 0 bytes"
+                "沒有產生有效 PDF。"
             )
 
-        print()
-        print(
-            f"完成：{output_file.name}"
-        )
+        if delete_source:
 
-        # =================================================
-        # Log
-        # =================================================
+            source.unlink()
+
+        emit(
+            progress_callback,
+            f"輸出：{output_file.name}",
+            "SUCCESS",
+            100
+        )
 
         log_success(
             "IMAGE_TO_PDF",
@@ -219,42 +238,9 @@ def image_to_pdf(file_path):
             )
         )
 
-        # =================================================
-        # 成功後刪除原圖
-        # =================================================
-
-        source.unlink()
-
-        print(
-            "原始圖片已刪除："
-            f"{source.name}"
-        )
+        return output_file
 
     except Exception as error:
-
-        print()
-        print("Image → PDF 失敗")
-
-        print(
-            f"檔案：{source.name}"
-        )
-
-        print(
-            f"錯誤：{error}"
-        )
-
-        print(
-            "原始圖片不會刪除。"
-        )
-
-        log_failed(
-            "IMAGE_TO_PDF",
-            f"{source.name} | {error}"
-        )
-
-        # =================================================
-        # 清除失敗 PDF
-        # =================================================
 
         if (
             output_file
@@ -262,7 +248,25 @@ def image_to_pdf(file_path):
         ):
 
             try:
+
                 output_file.unlink()
 
             except OSError:
+
                 pass
+
+        emit(
+            progress_callback,
+            f"轉換失敗：{error}",
+            "ERROR"
+        )
+
+        log_failed(
+            "IMAGE_TO_PDF",
+            (
+                f"{source.name} | "
+                f"{error}"
+            )
+        )
+
+        raise
