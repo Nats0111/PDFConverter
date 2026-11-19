@@ -263,6 +263,26 @@
    'C:\\Users\\Ray '
    'Lee\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64\\api-ms-win-crt-utility-l1-1-0.dll',
    'BINARY'),
+  ('attrs-26.1.0.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\attrs-26.1.0.dist-info\\INSTALLER',
+   'DATA'),
+  ('attrs-26.1.0.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\attrs-26.1.0.dist-info\\METADATA',
+   'DATA'),
+  ('attrs-26.1.0.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\attrs-26.1.0.dist-info\\RECORD',
+   'DATA'),
+  ('attrs-26.1.0.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\attrs-26.1.0.dist-info\\WHEEL',
+   'DATA'),
+  ('attrs-26.1.0.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\attrs-26.1.0.dist-info\\licenses\\LICENSE',
+   'DATA'),
   ('audioop\\_audioop.pyd',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\audioop\\_audioop.pyd',
@@ -335,6 +355,114 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\fontTools\\varLib\\iup.cp314-win_amd64.pyd',
    'EXTENSION'),
+  ('jsonschema-4.26.0.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\INSTALLER',
+   'DATA'),
+  ('jsonschema-4.26.0.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\METADATA',
+   'DATA'),
+  ('jsonschema-4.26.0.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\RECORD',
+   'DATA'),
+  ('jsonschema-4.26.0.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\WHEEL',
+   'DATA'),
+  ('jsonschema-4.26.0.dist-info\\entry_points.txt',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\entry_points.txt',
+   'DATA'),
+  ('jsonschema-4.26.0.dist-info\\licenses\\COPYING',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema-4.26.0.dist-info\\licenses\\COPYING',
+   'DATA'),
+  ('jsonschema\\benchmarks\\issue232\\issue.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema\\benchmarks\\issue232\\issue.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\metaschema.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\applicator',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\applicator',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\content',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\content',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\core',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\core',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\format',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\format',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\meta-data',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\meta-data',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft201909\\vocabularies\\validation',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft201909\\vocabularies\\validation',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\metaschema.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\applicator',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\applicator',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\content',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\content',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\core',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\core',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\format-annotation',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\format-annotation',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\format-assertion',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\format-assertion',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\meta-data',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\meta-data',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\unevaluated',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\unevaluated',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft202012\\vocabularies\\validation',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft202012\\vocabularies\\validation',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft3\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft3\\metaschema.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft4\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft4\\metaschema.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft6\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft6\\metaschema.json',
+   'DATA'),
+  ('jsonschema_specifications\\schemas\\draft7\\metaschema.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\jsonschema_specifications\\schemas\\draft7\\metaschema.json',
+   'DATA'),
   ('libcrypto-3.dll',
    'C:\\Users\\Ray '
    'Lee\\AppData\\Local\\Python\\pythoncore-3.14-64\\DLLs\\libcrypto-3.dll',
@@ -415,6 +543,26 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\lxml\\sax.cp314-win_amd64.pyd',
    'EXTENSION'),
+  ('magika-1.0.3.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika-1.0.3.dist-info\\INSTALLER',
+   'DATA'),
+  ('magika-1.0.3.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika-1.0.3.dist-info\\METADATA',
+   'DATA'),
+  ('magika-1.0.3.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika-1.0.3.dist-info\\RECORD',
+   'DATA'),
+  ('magika-1.0.3.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika-1.0.3.dist-info\\WHEEL',
+   'DATA'),
+  ('magika-1.0.3.dist-info\\sboms\\magika-cli.cyclonedx.json',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika-1.0.3.dist-info\\sboms\\magika-cli.cyclonedx.json',
+   'DATA'),
   ('magika\\config\\content_types_kb.min.json',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika\\config\\content_types_kb.min.json',
@@ -438,6 +586,30 @@
   ('magika\\py.typed',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\magika\\py.typed',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\INSTALLER',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\METADATA',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\RECORD',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\REQUESTED',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\REQUESTED',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\WHEEL',
+   'DATA'),
+  ('markitdown-0.1.9.dist-info\\entry_points.txt',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\markitdown-0.1.9.dist-info\\entry_points.txt',
    'DATA'),
   ('markitdown\\py.typed',
    'C:\\Users\\Ray '
@@ -596,6 +768,54 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\numpy\\random\\mtrand.cp314-win_amd64.pyd',
    'EXTENSION'),
+  ('ocrmypdf-17.14.2.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\INSTALLER',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\METADATA',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\RECORD',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\REQUESTED',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\REQUESTED',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\WHEEL',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\entry_points.txt',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\entry_points.txt',
+   'DATA'),
+  ('ocrmypdf-17.14.2.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf-17.14.2.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('ocrmypdf\\RELEASE.md',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf\\RELEASE.md',
+   'DATA'),
+  ('ocrmypdf\\data\\NotoSans-Regular.ttf',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf\\data\\NotoSans-Regular.ttf',
+   'DATA'),
+  ('ocrmypdf\\data\\Occulta.ttf',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf\\data\\Occulta.ttf',
+   'DATA'),
+  ('ocrmypdf\\data\\sRGB.icc',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf\\data\\sRGB.icc',
+   'DATA'),
+  ('ocrmypdf\\py.typed',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\ocrmypdf\\py.typed',
+   'DATA'),
   ('onnxruntime\\capi\\onnxruntime.dll',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime.dll',
@@ -1448,6 +1668,42 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pdfminer_six-20260107.dist-info\\top_level.txt',
    'DATA'),
+  ('pikepdf.libs\\msvcp140-7c26614e1d733892c2deac7e245ce115.dll',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pikepdf.libs\\msvcp140-7c26614e1d733892c2deac7e245ce115.dll',
+   'BINARY'),
+  ('pikepdf.libs\\qpdf30-14efc7eef6c9cae2095b94960308fa11.dll',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pikepdf.libs\\qpdf30-14efc7eef6c9cae2095b94960308fa11.dll',
+   'BINARY'),
+  ('pikepdf\\_core.pyd',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pikepdf\\_core.pyd',
+   'EXTENSION'),
+  ('pluggy-1.7.0.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\INSTALLER',
+   'DATA'),
+  ('pluggy-1.7.0.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\METADATA',
+   'DATA'),
+  ('pluggy-1.7.0.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\RECORD',
+   'DATA'),
+  ('pluggy-1.7.0.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\WHEEL',
+   'DATA'),
+  ('pluggy-1.7.0.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('pluggy-1.7.0.dist-info\\top_level.txt',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pluggy-1.7.0.dist-info\\top_level.txt',
+   'DATA'),
   ('pptx\\templates\\default.pptx',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pptx\\templates\\default.pptx',
@@ -1480,6 +1736,30 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pptx\\templates\\xlsx-icon.emf',
    'DATA'),
+  ('pydantic-2.14.3.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic-2.14.3.dist-info\\INSTALLER',
+   'DATA'),
+  ('pydantic-2.14.3.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic-2.14.3.dist-info\\METADATA',
+   'DATA'),
+  ('pydantic-2.14.3.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic-2.14.3.dist-info\\RECORD',
+   'DATA'),
+  ('pydantic-2.14.3.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic-2.14.3.dist-info\\WHEEL',
+   'DATA'),
+  ('pydantic-2.14.3.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic-2.14.3.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('pydantic_core\\_pydantic_core.cp314-win_amd64.pyd',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\pydantic_core\\_pydantic_core.cp314-win_amd64.pyd',
+   'EXTENSION'),
   ('pyexpat.pyd',
    'C:\\Users\\Ray '
    'Lee\\AppData\\Local\\Python\\pythoncore-3.14-64\\DLLs\\pyexpat.pyd',
@@ -1504,10 +1784,42 @@
    'C:\\Users\\Ray '
    'Lee\\AppData\\Local\\Python\\pythoncore-3.14-64\\python314.dll',
    'BINARY'),
+  ('rpds\\rpds.cp314-win_amd64.pyd',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\rpds\\rpds.cp314-win_amd64.pyd',
+   'EXTENSION'),
   ('select.pyd',
    'C:\\Users\\Ray '
    'Lee\\AppData\\Local\\Python\\pythoncore-3.14-64\\DLLs\\select.pyd',
    'EXTENSION'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\INSTALLER',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\INSTALLER',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\METADATA',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\METADATA',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\RECORD',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\RECORD',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\REQUESTED',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\REQUESTED',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\WHEEL',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\WHEEL',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\top_level.txt',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\top_level.txt',
+   'DATA'),
   ('setuptools\\_vendor\\jaraco\\text\\Lorem ipsum.txt',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\jaraco\\text\\Lorem '

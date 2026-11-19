@@ -5,8 +5,13 @@ from pathlib import Path
 from PyInstaller.utils.hooks import (
     collect_data_files,
     collect_submodules,
+    copy_metadata,
 )
 
+
+# =========================================================
+# Project
+# =========================================================
 
 project_dir = Path(
     SPECPATH
@@ -30,20 +35,41 @@ datas += collect_data_files(
 
 
 # =========================================================
-# Magika models
+# Magika
 # =========================================================
 
 datas += collect_data_files(
     "magika"
 )
 
+datas += copy_metadata(
+    "magika"
+)
+
 
 # =========================================================
-# MarkItDown data
+# MarkItDown
 # =========================================================
 
 datas += collect_data_files(
     "markitdown"
+)
+
+datas += copy_metadata(
+    "markitdown"
+)
+
+
+# =========================================================
+# OCRmyPDF
+# =========================================================
+
+datas += collect_data_files(
+    "ocrmypdf"
+)
+
+datas += copy_metadata(
+    "ocrmypdf"
 )
 
 
@@ -53,17 +79,51 @@ datas += collect_data_files(
 
 hiddenimports = []
 
-hiddenimports += collect_submodules(
-    "magika"
-)
 
-hiddenimports += collect_submodules(
-    "markitdown"
+# =========================================================
+# Magika
+# =========================================================
+
+hiddenimports += (
+    collect_submodules(
+        "magika"
+    )
 )
 
 
 # =========================================================
-# Optional icon
+# MarkItDown
+# =========================================================
+
+hiddenimports += (
+    collect_submodules(
+        "markitdown"
+    )
+)
+
+
+# =========================================================
+# OCRmyPDF
+# =========================================================
+
+hiddenimports += (
+    collect_submodules(
+        "ocrmypdf"
+    )
+)
+
+
+# =========================================================
+# Explicit OCRmyPDF plugin package
+# =========================================================
+
+hiddenimports += [
+    "ocrmypdf.builtin_plugins",
+]
+
+
+# =========================================================
+# Icon
 # =========================================================
 
 icon_path = (
@@ -84,13 +144,23 @@ else:
 
 
 # =========================================================
-# Version file
+# Version information
 # =========================================================
 
 version_file = (
     project_dir
     / "version_info.txt"
 )
+
+if version_file.exists():
+
+    version_value = str(
+        version_file
+    )
+
+else:
+
+    version_value = None
 
 
 # =========================================================
@@ -160,7 +230,9 @@ exe = EXE(
 
     exclude_binaries=True,
 
-    name="LocalDocumentConverter",
+    name=(
+        "LocalDocumentConverter"
+    ),
 
     debug=False,
 
@@ -184,16 +256,14 @@ exe = EXE(
 
     icon=icon_value,
 
-    version=(
-        str(version_file)
-        if version_file.exists()
-        else None
-    ),
+    version=version_value,
 )
 
 
 # =========================================================
-# COLLECT - onedir
+# COLLECT
+#
+# V3.5 正式使用 onedir。
 # =========================================================
 
 coll = COLLECT(
@@ -210,5 +280,7 @@ coll = COLLECT(
 
     upx_exclude=[],
 
-    name="LocalDocumentConverter",
+    name=(
+        "LocalDocumentConverter"
+    ),
 )

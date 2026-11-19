@@ -1,7 +1,3 @@
-import shutil
-import subprocess
-import sys
-
 from pathlib import Path
 
 from config import (
@@ -37,6 +33,10 @@ LANGUAGE_NAMES = {
 }
 
 
+# =========================================================
+# Progress callback
+# =========================================================
+
 def emit(
     callback,
     message,
@@ -53,56 +53,38 @@ def emit(
         )
 
 
-def get_ocrmypdf_command():
+# =========================================================
+# Lazy OCRmyPDF import
+# =========================================================
 
-    python_dir = Path(
-        sys.executable
-    ).parent
+def get_ocrmypdf():
 
-    possible_exe = (
-        python_dir
-        / "ocrmypdf.exe"
-    )
+    try:
 
-    if possible_exe.exists():
+        import ocrmypdf
 
-        return [
-            str(possible_exe)
-        ]
-
-    command = shutil.which(
-        "ocrmypdf"
-    )
-
-    if command:
-
-        return [
-            command
-        ]
-
-    # Development mode fallback
-    # In a frozen EXE this fallback is
-    # normally not expected to work.
-
-    if not getattr(
-        sys,
-        "frozen",
-        False
-    ):
-
-        return [
-            sys.executable,
-            "-m",
-            "ocrmypdf",
-        ]
-
-    raise RuntimeError(
-        (
-            "找不到 OCRmyPDF 執行程式。"
-            "請確認 OCRmyPDF 已正確配置。"
+        from ocrmypdf import (
+            OcrOptions,
         )
-    )
 
+        return (
+            ocrmypdf,
+            OcrOptions,
+        )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            (
+                "OCRmyPDF 初始化失敗："
+                f"{error}"
+            )
+        ) from error
+
+
+# =========================================================
+# OCR
+# =========================================================
 
 def ocr_pdf(
     file_path,
@@ -117,10 +99,14 @@ def ocr_pdf(
         file_path
     )
 
+    # =====================================================
+    # Validate source
+    # =====================================================
+
     if not source.exists():
 
         raise FileNotFoundError(
-            f"找不到：{source}"
+            f"找不到檔案：{source}"
         )
 
     if (
@@ -131,6 +117,10 @@ def ocr_pdf(
         raise ValueError(
             "OCR 只接受 PDF。"
         )
+
+    # =====================================================
+    # Validate languages
+    # =====================================================
 
     if not languages:
 
@@ -160,11 +150,9 @@ def ocr_pdf(
             )
         )
 
-    language_string = (
-        "+".join(
-            languages
-        )
-    )
+    # =====================================================
+    # Display language list
+    # =====================================================
 
     language_display = (
         " + ".join(
@@ -178,6 +166,10 @@ def ocr_pdf(
         )
     )
 
+    # =====================================================
+    # Output PDF
+    # =====================================================
+
     output_file = (
         unique_path(
             OCR_OUTPUT,
@@ -187,6 +179,10 @@ def ocr_pdf(
             )
         )
     )
+
+    # =====================================================
+    # Sidecar
+    # =====================================================
 
     sidecar_file = None
 
@@ -202,6 +198,10 @@ def ocr_pdf(
             )
         )
 
+    # =====================================================
+    # Console progress
+    # =====================================================
+
     emit(
         progress_callback,
         f"讀取 PDF：{source.name}"
@@ -215,66 +215,128 @@ def ocr_pdf(
         )
     )
 
-    command = (
-        get_ocrmypdf_command()
+    emit(
+        progress_callback,
+        (
+            "自動旋轉："
+            + (
+                "ON"
+                if rotate_pages
+                else "OFF"
+            )
+        )
     )
 
-    command += [
-
-        "--output-type",
-        "pdf",
-
-        "-l",
-        language_string,
-    ]
-
-    if rotate_pages:
-
-        command.append(
-            "--rotate-pages"
+    emit(
+        progress_callback,
+        (
+            "歪斜校正："
+            + (
+                "ON"
+                if deskew
+                else "OFF"
+            )
         )
+    )
 
-    if deskew:
-
-        command.append(
-            "--deskew"
-        )
-
-    if (
-        create_sidecar
-        and sidecar_file
-    ):
-
-        command += [
-            "--sidecar",
-            str(sidecar_file),
-        ]
+    if create_sidecar:
 
         emit(
             progress_callback,
-            "已啟用 OCR 文字 sidecar"
+            "OCR 文字輸出：ON"
         )
 
-    command += [
-        str(source),
-        str(output_file),
-    ]
+    # =====================================================
+    # Run OCR
+    # =====================================================
 
     try:
 
         emit(
             progress_callback,
-            "正在執行 OCRmyPDF..."
+            "初始化 OCRmyPDF..."
         )
 
-        subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+        (
+            ocrmypdf,
+            OcrOptions,
+        ) = get_ocrmypdf()
+
+        emit(
+            progress_callback,
+            "正在建立 OCR 工作..."
         )
+
+        # =================================================
+        # OCR Options
+        # =================================================
+
+        options_kwargs = {
+
+            "input_file":
+                str(source),
+
+            "output_file":
+                str(output_file),
+
+            "languages":
+                list(
+                    languages
+                ),
+
+            "rotate_pages":
+                bool(
+                    rotate_pages
+                ),
+
+            "deskew":
+                bool(
+                    deskew
+                ),
+
+            "output_type":
+                "pdf",
+
+            # GUI 已經自己處理進度，
+            # 不需要 OCRmyPDF progress bar
+            "progress_bar":
+                False,
+        }
+
+        if (
+            create_sidecar
+            and sidecar_file
+        ):
+
+            options_kwargs[
+                "sidecar"
+            ] = str(
+                sidecar_file
+            )
+
+        options = OcrOptions(
+            **options_kwargs
+        )
+
+        # =================================================
+        # Execute
+        # =================================================
+
+        emit(
+            progress_callback,
+            (
+                "正在執行 "
+                "Tesseract OCR..."
+            )
+        )
+
+        ocrmypdf.ocr(
+            options
+        )
+
+        # =================================================
+        # Validate PDF
+        # =================================================
 
         if (
             not output_file.exists()
@@ -284,8 +346,15 @@ def ocr_pdf(
         ):
 
             raise RuntimeError(
-                "OCRmyPDF 沒有產生有效 PDF。"
+                (
+                    "OCRmyPDF "
+                    "沒有產生有效 PDF。"
+                )
             )
+
+        # =================================================
+        # Complete
+        # =================================================
 
         emit(
             progress_callback,
@@ -294,46 +363,84 @@ def ocr_pdf(
             100
         )
 
+        emit(
+            progress_callback,
+            (
+                "PDF 輸出："
+                f"{output_file.name}"
+            ),
+            "SUCCESS"
+        )
+
         if (
             create_sidecar
             and sidecar_file
-            and sidecar_file.exists()
         ):
 
-            emit(
-                progress_callback,
-                (
-                    "OCR 文字："
-                    f"{sidecar_file.name}"
-                ),
-                "SUCCESS"
-            )
+            if sidecar_file.exists():
+
+                emit(
+                    progress_callback,
+                    (
+                        "文字輸出："
+                        f"{sidecar_file.name}"
+                    ),
+                    "SUCCESS"
+                )
+
+            else:
+
+                emit(
+                    progress_callback,
+                    (
+                        "未產生 OCR "
+                        "文字 sidecar"
+                    ),
+                    "WARNING"
+                )
+
+        # =================================================
+        # Log
+        # =================================================
 
         log_success(
             "OCR",
             (
                 f"{source.name} -> "
-                f"{output_file.name}"
+                f"{output_file.name} | "
+                f"languages="
+                f"{'+'.join(languages)}"
             )
         )
 
         return {
+
             "pdf":
                 output_file,
 
             "sidecar":
                 (
                     sidecar_file
+
                     if (
                         sidecar_file
                         and
                         sidecar_file.exists()
                     )
+
                     else None
                 ),
         }
 
-    except subprocess.CalledProcessError as error:
+    # =====================================================
+    # Error
+    # =====================================================
+
+    except Exception as error:
+
+        # =================================================
+        # Delete incomplete output
+        # =================================================
 
         if output_file.exists():
 
@@ -358,15 +465,12 @@ def ocr_pdf(
 
                 pass
 
-        stderr = (
-            error.stderr.strip()
-            if error.stderr
-            else str(error)
-        )
-
         emit(
             progress_callback,
-            f"OCR 失敗：{stderr}",
+            (
+                "OCR 失敗："
+                f"{error}"
+            ),
             "ERROR"
         )
 
@@ -374,13 +478,8 @@ def ocr_pdf(
             "OCR",
             (
                 f"{source.name} | "
-                f"{stderr}"
+                f"{error}"
             )
         )
 
-        raise RuntimeError(
-            (
-                "OCRmyPDF 執行失敗：\n"
-                f"{stderr}"
-            )
-        )
+        raise

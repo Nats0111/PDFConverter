@@ -1,4 +1,3 @@
-import importlib.util
 import shutil
 import subprocess
 
@@ -15,26 +14,30 @@ REQUIRED_OCR_LANGUAGES = {
 }
 
 
+# =========================================================
+# Python module check
+# =========================================================
+
 def module_available(
     module_name
 ):
 
     try:
 
-        return (
-            importlib.util.find_spec(
-                module_name
-            )
-            is not None
+        __import__(
+            module_name
         )
 
-    except (
-        ImportError,
-        AttributeError,
-    ):
+        return True
+
+    except Exception:
 
         return False
 
+
+# =========================================================
+# External command check
+# =========================================================
 
 def command_available(
     command
@@ -47,6 +50,10 @@ def command_available(
         is not None
     )
 
+
+# =========================================================
+# Tesseract languages
+# =========================================================
 
 def get_tesseract_languages():
 
@@ -63,10 +70,15 @@ def get_tesseract_languages():
                 TESSERACT,
                 "--list-langs",
             ],
+
             capture_output=True,
+
             text=True,
+
             encoding="utf-8",
+
             errors="replace",
+
             timeout=15,
         )
 
@@ -84,9 +96,14 @@ def get_tesseract_languages():
 
             item = line.strip()
 
+            if not item:
+
+                continue
+
             if (
-                not item
-                or item.lower().startswith(
+                item
+                .lower()
+                .startswith(
                     "list of available languages"
                 )
             ):
@@ -107,12 +124,16 @@ def get_tesseract_languages():
         return set()
 
 
+# =========================================================
+# Environment report
+# =========================================================
+
 def check_environment():
 
     report = []
 
     # =====================================================
-    # Python packages
+    # Python Packages
     # =====================================================
 
     packages = {
@@ -133,12 +154,14 @@ def check_environment():
             "tkinterdnd2",
     }
 
-    for display_name, module in (
+    for display_name, module_name in (
         packages.items()
     ):
 
-        available = module_available(
-            module
+        available = (
+            module_available(
+                module_name
+            )
         )
 
         report.append(
@@ -180,7 +203,10 @@ def check_environment():
                 (
                     "可用"
                     if ghostscript_ok
-                    else "PATH 中找不到 gswin64c"
+                    else (
+                        "PATH 中找不到 "
+                        f"{GHOSTSCRIPT}"
+                    )
                 ),
         }
     )
@@ -207,13 +233,16 @@ def check_environment():
                 (
                     "可用"
                     if tesseract_ok
-                    else "PATH 中找不到 tesseract"
+                    else (
+                        "PATH 中找不到 "
+                        f"{TESSERACT}"
+                    )
                 ),
         }
     )
 
     # =====================================================
-    # OCR language packs
+    # OCR Languages
     # =====================================================
 
     languages = (
@@ -221,7 +250,8 @@ def check_environment():
     )
 
     for code, name in (
-        REQUIRED_OCR_LANGUAGES.items()
+        REQUIRED_OCR_LANGUAGES
+        .items()
     ):
 
         available = (
@@ -231,7 +261,9 @@ def check_environment():
         report.append(
             {
                 "name":
-                    f"OCR {name}",
+                    (
+                        f"OCR {name}"
+                    ),
 
                 "ok":
                     available,
@@ -240,7 +272,10 @@ def check_environment():
                     (
                         code
                         if available
-                        else f"{code} 未安裝"
+                        else (
+                            f"{code} "
+                            "未安裝"
+                        )
                     ),
             }
         )

@@ -1,0 +1,9 @@
+{
+    "compression_quality": "medium",
+    "ocr_languages": [
+        "chi_tra"
+    ],
+    "ocr_rotate": true,
+    "ocr_deskew": true,
+    "ocr_sidecar": true
+}

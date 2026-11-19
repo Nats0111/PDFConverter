@@ -1,0 +1,5 @@
+[console_scripts]
+ocrmypdf = ocrmypdf.__main__:run
+
+[pyinstaller40]
+hook-dirs = ocrmypdf._pyinstaller:get_hook_dirs
