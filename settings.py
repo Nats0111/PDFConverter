@@ -10,6 +10,9 @@ DEFAULT_SETTINGS = {
     "compression_quality":
         "medium",
 
+    "custom_dpi":
+        200,
+
     "ocr_languages": [
         "eng",
         "chi_tra",
@@ -23,25 +26,28 @@ DEFAULT_SETTINGS = {
 
     "ocr_sidecar":
         False,
+
+    "scan_optimize_level":
+        1,
 }
 
 
 def load_settings():
 
-    if not SETTINGS_FILE.exists():
+    if not (
+        SETTINGS_FILE.exists()
+    ):
 
-        return DEFAULT_SETTINGS.copy()
+        return (
+            DEFAULT_SETTINGS.copy()
+        )
 
     try:
 
-        content = (
+        data = json.loads(
             SETTINGS_FILE.read_text(
                 encoding="utf-8"
             )
-        )
-
-        loaded = json.loads(
-            content
         )
 
         settings = (
@@ -49,12 +55,12 @@ def load_settings():
         )
 
         if isinstance(
-            loaded,
+            data,
             dict
         ):
 
             settings.update(
-                loaded
+                data
             )
 
         return settings

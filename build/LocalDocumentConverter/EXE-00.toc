@@ -5,7 +5,7 @@
  True,
  'C:\\Users\\Ray '
  'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\images\\icon-windowed.ico',
- versioninfo.VSVersionInfo(ffi=versioninfo.FixedFileInfo(filevers=(3, 5, 0, 0), prodvers=(3, 5, 0, 0), mask=0x3f, flags=0x0, OS=0x40004, fileType=1, subtype=0x0, date=(0, 0)), kids=[versioninfo.StringFileInfo([versioninfo.StringTable('040904B0', [versioninfo.StringStruct('CompanyName', 'Ray Lee'), versioninfo.StringStruct('FileDescription', 'Local Document Converter'), versioninfo.StringStruct('FileVersion', '3.5.0'), versioninfo.StringStruct('InternalName', 'LocalDocumentConverter'), versioninfo.StringStruct('OriginalFilename', 'LocalDocumentConverter.exe'), versioninfo.StringStruct('ProductName', 'Local Document Converter'), versioninfo.StringStruct('ProductVersion', '3.5.0')])]), versioninfo.VarFileInfo([versioninfo.VarStruct('Translation', [1033, 1200])])]),
+ versioninfo.VSVersionInfo(ffi=versioninfo.FixedFileInfo(filevers=(4, 0, 0, 0), prodvers=(4, 0, 0, 0), mask=0x3f, flags=0x0, OS=0x40004, fileType=1, subtype=0x0, date=(0, 0)), kids=[versioninfo.StringFileInfo([versioninfo.StringTable('040904B0', [versioninfo.StringStruct('CompanyName', 'Ray Lee'), versioninfo.StringStruct('FileDescription', 'Local Document Converter'), versioninfo.StringStruct('FileVersion', '4.0.0'), versioninfo.StringStruct('InternalName', 'LocalDocumentConverter'), versioninfo.StringStruct('OriginalFilename', 'LocalDocumentConverter.exe'), versioninfo.StringStruct('ProductName', 'Local Document Converter'), versioninfo.StringStruct('ProductVersion', '4.0.0')])]), versioninfo.VarFileInfo([versioninfo.VarStruct('Translation', [1033, 1200])])]),
  False,
  False,
  b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<assembly xmlns='
@@ -92,7 +92,7 @@
  [],
  False,
  False,
- 1795096095,
+ 1795103541,
  [('runw.exe',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',

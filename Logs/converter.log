@@ -40,3 +40,9 @@ override this error.
 2026-11-19 21:32:15 | OCR | SUCCESS | merged_1.pdf -> merged_1_ocr.pdf
 2026-11-19 21:32:43 | OCR | FAILED | merged.pdf | PriorOcrFoundError: page 1 already has text! - aborting (use --force-ocr or --mode force to force OCR; see also help for --skip-text, --redo-ocr, and --mode)
 2026-11-19 21:32:54 | OCR | SUCCESS | merged_1.pdf -> merged_1_ocr_1.pdf
+2026-11-19 23:12:12 | COMPRESS_MEDIUM | SUCCESS | 大一到大三的作品集.pdf -> 大一到大三的作品集_compressed.pdf | 1.67 GB -> 11.46 MB | -99.3% | 大型 PDF 模式 / 150 DPI
+2026-11-19 23:15:15 | COMPRESS_MEDIUM | SUCCESS | Conversazione (1).pdf -> Conversazione (1)_compressed.pdf | 56.36 MB -> 1.74 MB | -96.9% | 標準 Ghostscript /ebook
+2026-11-19 23:16:02 | COMPRESS_MEDIUM | SUCCESS | Conversazione (1).pdf -> Conversazione (1)_compressed_1.pdf | 56.36 MB -> 1.74 MB | -96.9% | 標準 Ghostscript /ebook
+2026-11-19 23:25:10 | COMPRESS_MEDIUM | SUCCESS | Conversazione (1).pdf -> Conversazione (1)_compressed_2.pdf | 56.36 MB -> 1.74 MB | -96.9% | 標準 / /ebook
+2026-11-19 23:49:07 | SCAN_OPTIMIZE | SUCCESS | 114-1成績單single.pdf -> 114-1成績單single_optimized.pdf | O1
+2026-11-19 23:49:55 | COMPRESS_MEDIUM | SUCCESS | 114-1成績單single_optimized.pdf -> 114-1成績單single_optimized_compressed.pdf | 6.29 MB -> 382.33 KB | -94.1% | 標準 / /ebook

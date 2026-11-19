@@ -3,13 +3,17 @@ import sys
 from pathlib import Path
 
 
-APP_NAME = "Local Document Converter"
+APP_NAME = (
+    "Local Document Converter"
+)
 
-APP_VERSION = "3.5.0"
+APP_VERSION = (
+    "4.0.0"
+)
 
 
 # =========================================================
-# Runtime mode
+# Runtime
 # =========================================================
 
 FROZEN = bool(
@@ -20,10 +24,6 @@ FROZEN = bool(
     )
 )
 
-
-# =========================================================
-# Application base directory
-# =========================================================
 
 if FROZEN:
 
@@ -38,13 +38,12 @@ else:
     ).resolve().parent
 
 
-# =========================================================
-# Internal bundled resources
-# =========================================================
-
-if FROZEN and hasattr(
-    sys,
-    "_MEIPASS"
+if (
+    FROZEN
+    and hasattr(
+        sys,
+        "_MEIPASS"
+    )
 ):
 
     RESOURCE_BASE = Path(
@@ -61,18 +60,15 @@ else:
 # =========================================================
 
 MD_INPUT = (
-    BASE
-    / "MD_Input"
+    BASE / "MD_Input"
 )
 
 MD_OUTPUT = (
-    BASE
-    / "MD_Output"
+    BASE / "MD_Output"
 )
 
 MD_PROCESSED = (
-    BASE
-    / "MD_Processed"
+    BASE / "MD_Processed"
 )
 
 
@@ -147,12 +143,27 @@ OCR_OUTPUT = (
 
 
 # =========================================================
-# Logs / Settings
+# Scan Optimize
+# =========================================================
+
+SCAN_OUTPUT = (
+    BASE
+    / "Scan_Output"
+)
+
+
+# =========================================================
+# System
 # =========================================================
 
 LOGS = (
     BASE
     / "Logs"
+)
+
+TEMP = (
+    BASE
+    / "Temp"
 )
 
 SETTINGS_FILE = (
@@ -162,16 +173,57 @@ SETTINGS_FILE = (
 
 
 # =========================================================
-# External executables
+# External tools
 # =========================================================
 
-GHOSTSCRIPT = "gswin64c"
+GHOSTSCRIPT = (
+    "gswin64c"
+)
 
-TESSERACT = "tesseract"
+TESSERACT = (
+    "tesseract"
+)
 
 
 # =========================================================
-# User folders
+# Large PDF
+#
+# 這是 V4 自訂的策略門檻，
+# 不是 Ghostscript 官方限制。
+# =========================================================
+
+LARGE_PDF_SIZE = (
+    500
+    * 1024
+    * 1024
+)
+
+
+# =========================================================
+# Timeout
+# =========================================================
+
+GHOSTSCRIPT_TIMEOUT = (
+    2
+    * 60
+    * 60
+)
+
+
+# =========================================================
+# Disk safety
+#
+# 預留原始檔大小的 2 倍作為建議工作空間。
+# 這是我們自己的安全策略。
+# =========================================================
+
+DISK_SPACE_MULTIPLIER = (
+    2.0
+)
+
+
+# =========================================================
+# Folders
 # =========================================================
 
 FOLDERS = [
@@ -194,7 +246,11 @@ FOLDERS = [
 
     OCR_OUTPUT,
 
+    SCAN_OUTPUT,
+
     LOGS,
+
+    TEMP,
 ]
 
 

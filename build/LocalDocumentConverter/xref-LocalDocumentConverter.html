@@ -309,6 +309,7 @@ imports:
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
  &#8226;   <a href="#pyi_rth__tkinter.py">pyi_rth__tkinter.py</a>
  &#8226;   <a href="#pyi_rth_cryptography_openssl.py">pyi_rth_cryptography_openssl.py</a>
@@ -337,6 +338,7 @@ imports:
  &#8226;   <a href="#tkinterdnd2.TkinterDnD">tkinterdnd2.TkinterDnD</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
+ &#8226;   <a href="#utils">utils</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#weakref">weakref</a>
 
@@ -16937,6 +16939,7 @@ imported by:
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
  &#8226;   <a href="#settings">settings</a>
 
@@ -35271,6 +35274,7 @@ imported by:
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
 
   </div>
@@ -49376,6 +49380,7 @@ imported by:
  &#8226;   <a href="#ocrmypdf.subprocess">ocrmypdf.subprocess</a>
  &#8226;   <a href="#ocrmypdf.subprocess._version">ocrmypdf.subprocess._version</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
 
   </div>
 
@@ -57639,6 +57644,7 @@ imported by:
  &#8226;   <a href="#pptx.parts.image">pptx.parts.image</a>
  &#8226;   <a href="#pptx.shapes.shapetree">pptx.shapes.shapetree</a>
  &#8226;   <a href="#pptx.text.fonts">pptx.text.fonts</a>
+ &#8226;   <a href="#processors.compress">processors.compress</a>
  &#8226;   <a href="#pty">pty</a>
  &#8226;   <a href="#py_compile">py_compile</a>
  &#8226;   <a href="#pydantic._internal._generate_schema">pydantic._internal._generate_schema</a>
@@ -57758,6 +57764,7 @@ imported by:
  &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
  &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
  &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
+ &#8226;   <a href="#utils">utils</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#webbrowser">webbrowser</a>
  &#8226;   <a href="#xlrd">xlrd</a>
@@ -71156,6 +71163,7 @@ imported by:
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
  &#8226;   <a href="#pydantic._internal._generate_schema">pydantic._internal._generate_schema</a>
  &#8226;   <a href="#pydantic._internal._git">pydantic._internal._git</a>
@@ -78186,6 +78194,7 @@ imported by:
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
 
   </div>
@@ -78199,11 +78208,15 @@ imported by:
 imports:
     <a href="#config">config</a>
  &#8226;   <a href="#logger">logger</a>
+ &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#processors">processors</a>
+ &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#subprocess">subprocess</a>
+ &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#utils">utils</a>
+ &#8226;   <a href="#uuid">uuid</a>
 
   </div>
   <div class="import">
@@ -78283,6 +78296,27 @@ imported by:
 <div class="node">
   <a name="processors.ocr_pdf"></a>
   <a target="code" href="///C:/Users/Ray%20Lee/OneDrive/Desktop/PDFConverter/processors/ocr_pdf.py" type="text/plain"><tt>processors.ocr_pdf</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#config">config</a>
+ &#8226;   <a href="#logger">logger</a>
+ &#8226;   <a href="#ocrmypdf">ocrmypdf</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#processors">processors</a>
+ &#8226;   <a href="#utils">utils</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#gui.py">gui.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="processors.scan_optimize"></a>
+  <a target="code" href="///C:/Users/Ray%20Lee/OneDrive/Desktop/PDFConverter/processors/scan_optimize.py" type="text/plain"><tt>processors.scan_optimize</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#config">config</a>
@@ -90752,6 +90786,7 @@ imported by:
  &#8226;   <a href="#pypdf.papersizes">pypdf.papersizes</a>
  &#8226;   <a href="#pypdf.types">pypdf.types</a>
  &#8226;   <a href="#pypdf.xmp">pypdf.xmp</a>
+ &#8226;   <a href="#utils">utils</a>
 
   </div>
 
@@ -93342,6 +93377,7 @@ imported by:
  &#8226;   <a href="#pptx.oxml.coreprops">pptx.oxml.coreprops</a>
  &#8226;   <a href="#pptx.oxml.text">pptx.oxml.text</a>
  &#8226;   <a href="#pptx.oxml.xmlchemy">pptx.oxml.xmlchemy</a>
+ &#8226;   <a href="#processors.compress">processors.compress</a>
  &#8226;   <a href="#pycparser.c_lexer">pycparser.c_lexer</a>
  &#8226;   <a href="#pydantic._internal._config">pydantic._internal._config</a>
  &#8226;   <a href="#pydantic._internal._fields">pydantic._internal._fields</a>
@@ -101536,6 +101572,7 @@ imported by:
  &#8226;   <a href="#setuptools.compat.py311">setuptools.compat.py311</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#utils">utils</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#webbrowser">webbrowser</a>
  &#8226;   <a href="#xlsxwriter.packager">xlsxwriter.packager</a>
@@ -103040,6 +103077,7 @@ imported by:
  &#8226;   <a href="#setuptools.installer">setuptools.installer</a>
  &#8226;   <a href="#speech_recognition">speech_recognition</a>
  &#8226;   <a href="#speech_recognition.audio">speech_recognition.audio</a>
+ &#8226;   <a href="#utils">utils</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#webbrowser">webbrowser</a>
 
@@ -104064,6 +104102,7 @@ imported by:
  &#8226;   <a href="#pandas._testing.contexts">pandas._testing.contexts</a>
  &#8226;   <a href="#pandas.io.clipboard">pandas.io.clipboard</a>
  &#8226;   <a href="#pefile">pefile</a>
+ &#8226;   <a href="#processors.compress">processors.compress</a>
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#pygments.lexer">pygments.lexer</a>
  &#8226;   <a href="#queue">queue</a>
@@ -108642,17 +108681,23 @@ imported by:
   <a target="code" href="///C:/Users/Ray%20Lee/OneDrive/Desktop/PDFConverter/utils.py" type="text/plain"><tt>utils</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#pathlib">pathlib</a>
+    <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#pypdf">pypdf</a>
+ &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#time">time</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#processors.compress">processors.compress</a>
+    <a href="#gui.py">gui.py</a>
+ &#8226;   <a href="#processors.compress">processors.compress</a>
  &#8226;   <a href="#processors.image_to_pdf">processors.image_to_pdf</a>
  &#8226;   <a href="#processors.markdown">processors.markdown</a>
  &#8226;   <a href="#processors.merge_pdf">processors.merge_pdf</a>
  &#8226;   <a href="#processors.ocr_pdf">processors.ocr_pdf</a>
+ &#8226;   <a href="#processors.scan_optimize">processors.scan_optimize</a>
  &#8226;   <a href="#processors.split_pdf">processors.split_pdf</a>
 
   </div>
@@ -108694,6 +108739,7 @@ imported by:
  &#8226;   <a href="#msal.wstrust_request">msal.wstrust_request</a>
  &#8226;   <a href="#pandas.io.formats.style_render">pandas.io.formats.style_render</a>
  &#8226;   <a href="#pefile">pefile</a>
+ &#8226;   <a href="#processors.compress">processors.compress</a>
  &#8226;   <a href="#pydantic._internal._generate_schema">pydantic._internal._generate_schema</a>
  &#8226;   <a href="#pydantic.deprecated.json">pydantic.deprecated.json</a>
  &#8226;   <a href="#pydantic.types">pydantic.types</a>

@@ -1,9 +1,13 @@
 {
     "compression_quality": "medium",
+    "custom_dpi": 200,
     "ocr_languages": [
-        "chi_tra"
+        "eng",
+        "chi_tra",
+        "ita"
     ],
     "ocr_rotate": true,
     "ocr_deskew": true,
-    "ocr_sidecar": true
+    "ocr_sidecar": false,
+    "scan_optimize_level": 1
 }

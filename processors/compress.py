@@ -1,11 +1,19 @@
+import os
+import re
 import shutil
 import subprocess
+import time
+import uuid
 
 from pathlib import Path
 
 from config import (
     COMPRESS_OUTPUT,
     GHOSTSCRIPT,
+    GHOSTSCRIPT_TIMEOUT,
+    LARGE_PDF_SIZE,
+    DISK_SPACE_MULTIPLIER,
+    TEMP,
 )
 
 from utils import (
@@ -13,6 +21,11 @@ from utils import (
     unique_path,
     format_size,
     is_temp_file,
+    get_pdf_page_count,
+    validate_pdf,
+    has_enough_disk_space,
+    get_disk_space,
+    hidden_process_options,
 )
 
 from logger import (
@@ -22,42 +35,122 @@ from logger import (
 )
 
 
+# =========================================================
+# Compression Profiles
+# =========================================================
+
 QUALITY_SETTINGS = {
 
+    # =====================================================
+    # Lossless / Conservative
+    # =====================================================
+
+    "lossless": {
+
+        "ghostscript":
+            "/default",
+
+        "name":
+            "無損最佳化",
+
+        "dpi":
+            None,
+
+        "log_name":
+            "COMPRESS_LOSSLESS",
+    },
+
+    # =====================================================
+    # Strong
+    # =====================================================
+
     "low": {
+
         "ghostscript":
             "/screen",
 
         "name":
             "強力壓縮",
 
+        "dpi":
+            96,
+
         "log_name":
             "COMPRESS_LOW",
     },
 
+    # =====================================================
+    # Balanced
+    # =====================================================
+
     "medium": {
+
         "ghostscript":
             "/ebook",
 
         "name":
             "平衡壓縮",
 
+        "dpi":
+            150,
+
         "log_name":
             "COMPRESS_MEDIUM",
     },
 
+    # =====================================================
+    # High quality
+    # =====================================================
+
     "high": {
+
         "ghostscript":
             "/printer",
 
         "name":
             "高品質",
 
+        "dpi":
+            300,
+
         "log_name":
             "COMPRESS_HIGH",
     },
+
+    # =====================================================
+    # Custom
+    # =====================================================
+
+    "custom": {
+
+        "ghostscript":
+            None,
+
+        "name":
+            "自訂 DPI",
+
+        "dpi":
+            None,
+
+        "log_name":
+            "COMPRESS_CUSTOM",
+    },
 }
 
+
+# =========================================================
+# Ghostscript page output
+# =========================================================
+
+PAGE_PATTERN = re.compile(
+    r"\bPage\s+(\d+)\b",
+    re.IGNORECASE
+)
+
+
+# =========================================================
+# Event callback
+# =========================================================
 
 def emit(
     callback,
@@ -75,18 +168,820 @@ def emit(
         )
 
 
+# =========================================================
+# Helpers
+# =========================================================
+
+def safe_unlink(
+    path
+):
+
+    if not path:
+
+        return
+
+    path = Path(
+        path
+    )
+
+    if not path.exists():
+
+        return
+
+    try:
+
+        path.unlink()
+
+    except OSError:
+
+        pass
+
+
+# =========================================================
+# Cancelled exception
+# =========================================================
+
+class CompressionCancelled(
+    Exception
+):
+
+    pass
+
+
+# =========================================================
+# Validate DPI
+# =========================================================
+
+def validate_dpi(
+    dpi
+):
+
+    try:
+
+        dpi = int(
+            dpi
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+
+        raise ValueError(
+            "DPI 必須是整數。"
+        )
+
+    if (
+        dpi < 72
+        or dpi > 600
+    ):
+
+        raise ValueError(
+            (
+                "自訂 DPI 必須介於 "
+                "72 到 600。"
+            )
+        )
+
+    return dpi
+
+
+# =========================================================
+# Standard preset
+# =========================================================
+
+def build_preset_command(
+    source,
+    output_file,
+    preset
+):
+
+    return [
+
+        GHOSTSCRIPT,
+
+        "-sDEVICE=pdfwrite",
+
+        "-dCompatibilityLevel=1.4",
+
+        (
+            "-dPDFSETTINGS="
+            f"{preset}"
+        ),
+
+        "-dNOPAUSE",
+
+        "-dBATCH",
+
+        (
+            "-sOutputFile="
+            f"{output_file}"
+        ),
+
+        str(source),
+    ]
+
+
+# =========================================================
+# Lossless / conservative
+#
+# 不主動進行圖片降採樣。
+# =========================================================
+
+def build_lossless_command(
+    source,
+    output_file,
+):
+
+    return [
+
+        GHOSTSCRIPT,
+
+        "-sDEVICE=pdfwrite",
+
+        "-dCompatibilityLevel=1.4",
+
+        "-dDetectDuplicateImages=true",
+
+        "-dCompressFonts=true",
+
+        "-dSubsetFonts=true",
+
+        "-dEmbedAllFonts=true",
+
+        "-dDownsampleColorImages=false",
+
+        "-dDownsampleGrayImages=false",
+
+        "-dDownsampleMonoImages=false",
+
+        "-dNOPAUSE",
+
+        "-dBATCH",
+
+        (
+            "-sOutputFile="
+            f"{output_file}"
+        ),
+
+        str(source),
+    ]
+
+
+# =========================================================
+# Explicit image downsample
+# =========================================================
+
+def build_downsample_command(
+    source,
+    output_file,
+    dpi
+):
+
+    dpi = validate_dpi(
+        dpi
+    )
+
+    return [
+
+        GHOSTSCRIPT,
+
+        "-sDEVICE=pdfwrite",
+
+        "-dCompatibilityLevel=1.4",
+
+        # =================================================
+        # General optimization
+        # =================================================
+
+        "-dDetectDuplicateImages=true",
+
+        "-dCompressFonts=true",
+
+        "-dSubsetFonts=true",
+
+        "-dEmbedAllFonts=true",
+
+        # =================================================
+        # Color
+        # =================================================
+
+        "-dDownsampleColorImages=true",
+
+        "-dAutoFilterColorImages=true",
+
+        "-dColorImageDownsampleType=/Bicubic",
+
+        (
+            "-dColorImageResolution="
+            f"{dpi}"
+        ),
+
+        # =================================================
+        # Gray
+        # =================================================
+
+        "-dDownsampleGrayImages=true",
+
+        "-dAutoFilterGrayImages=true",
+
+        "-dGrayImageDownsampleType=/Bicubic",
+
+        (
+            "-dGrayImageResolution="
+            f"{dpi}"
+        ),
+
+        # =================================================
+        # Mono
+        # =================================================
+
+        "-dDownsampleMonoImages=true",
+
+        "-dMonoImageDownsampleType=/Bicubic",
+
+        # 黑白文字/線條至少保留 300 DPI
+
+        (
+            "-dMonoImageResolution="
+            f"{max(dpi, 300)}"
+        ),
+
+        # =================================================
+        # Runtime
+        # =================================================
+
+        "-dNOPAUSE",
+
+        "-dBATCH",
+
+        (
+            "-sOutputFile="
+            f"{output_file}"
+        ),
+
+        str(source),
+    ]
+
+
+# =========================================================
+# Kill process
+# =========================================================
+
+def terminate_process(
+    process
+):
+
+    if not process:
+
+        return
+
+    if (
+        process.poll()
+        is not None
+    ):
+
+        return
+
+    try:
+
+        process.terminate()
+
+        process.wait(
+            timeout=3
+        )
+
+        return
+
+    except Exception:
+
+        pass
+
+    try:
+
+        process.kill()
+
+    except Exception:
+
+        pass
+
+
+# =========================================================
+# Ghostscript live runner
+# =========================================================
+
+def run_ghostscript(
+    command,
+    output_file,
+    total_pages,
+    progress_callback=None,
+    cancel_event=None,
+):
+
+    safe_unlink(
+        output_file
+    )
+
+    process_options = (
+        hidden_process_options()
+    )
+
+    process = None
+
+    recent_lines = []
+
+    last_page = 0
+
+    last_percent = -1
+
+    start_time = (
+        time.monotonic()
+    )
+
+    try:
+
+        process = (
+            subprocess.Popen(
+
+                command,
+
+                stdout=(
+                    subprocess.PIPE
+                ),
+
+                stderr=(
+                    subprocess.STDOUT
+                ),
+
+                text=True,
+
+                encoding="utf-8",
+
+                errors="replace",
+
+                bufsize=1,
+
+                creationflags=(
+                    process_options[
+                        "creationflags"
+                    ]
+                ),
+
+                startupinfo=(
+                    process_options[
+                        "startupinfo"
+                    ]
+                ),
+            )
+        )
+
+        if process.stdout is None:
+
+            raise RuntimeError(
+                (
+                    "無法取得 Ghostscript "
+                    "輸出。"
+                )
+            )
+
+        # =================================================
+        # Read Ghostscript output
+        # =================================================
+
+        for raw_line in (
+            process.stdout
+        ):
+
+            # =============================================
+            # User cancellation
+            # =============================================
+
+            if (
+                cancel_event
+                and
+                cancel_event.is_set()
+            ):
+
+                terminate_process(
+                    process
+                )
+
+                safe_unlink(
+                    output_file
+                )
+
+                raise CompressionCancelled(
+                    "使用者取消壓縮。"
+                )
+
+            # =============================================
+            # Timeout
+            # =============================================
+
+            elapsed = (
+                time.monotonic()
+                - start_time
+            )
+
+            if (
+                GHOSTSCRIPT_TIMEOUT
+                and
+                elapsed
+                > GHOSTSCRIPT_TIMEOUT
+            ):
+
+                terminate_process(
+                    process
+                )
+
+                safe_unlink(
+                    output_file
+                )
+
+                raise subprocess.TimeoutExpired(
+                    command,
+                    GHOSTSCRIPT_TIMEOUT
+                )
+
+            line = (
+                raw_line.strip()
+            )
+
+            if not line:
+
+                continue
+
+            # =============================================
+            # Keep only recent diagnostic lines
+            # =============================================
+
+            recent_lines.append(
+                line
+            )
+
+            if (
+                len(recent_lines)
+                > 100
+            ):
+
+                recent_lines.pop(
+                    0
+                )
+
+            # =============================================
+            # Page progress
+            # =============================================
+
+            matches = (
+                PAGE_PATTERN.findall(
+                    line
+                )
+            )
+
+            if not matches:
+
+                continue
+
+            try:
+
+                current_page = max(
+                    int(value)
+                    for value
+                    in matches
+                )
+
+            except ValueError:
+
+                continue
+
+            if (
+                current_page
+                < last_page
+            ):
+
+                continue
+
+            last_page = (
+                current_page
+            )
+
+            if (
+                total_pages
+                and
+                total_pages > 0
+            ):
+
+                current_page = min(
+                    current_page,
+                    total_pages
+                )
+
+                progress = (
+                    current_page
+                    / total_pages
+                    * 94.0
+                )
+
+                current_percent = int(
+                    progress
+                )
+
+                if (
+                    current_percent
+                    != last_percent
+                ):
+
+                    last_percent = (
+                        current_percent
+                    )
+
+                    emit(
+                        progress_callback,
+                        (
+                            f"第 {current_page} "
+                            f"/ {total_pages} 頁"
+                        ),
+                        "INFO",
+                        progress
+                    )
+
+            else:
+
+                emit(
+                    progress_callback,
+                    (
+                        f"正在處理第 "
+                        f"{current_page} 頁"
+                    ),
+                    "INFO",
+                    None
+                )
+
+        return_code = (
+            process.wait()
+        )
+
+        if (
+            cancel_event
+            and
+            cancel_event.is_set()
+        ):
+
+            safe_unlink(
+                output_file
+            )
+
+            raise CompressionCancelled(
+                "使用者取消壓縮。"
+            )
+
+        if return_code != 0:
+
+            raise RuntimeError(
+                (
+                    "Ghostscript "
+                    f"離開碼 {return_code}"
+                )
+            )
+
+        if not (
+            Path(output_file)
+            .exists()
+        ):
+
+            raise RuntimeError(
+                (
+                    "Ghostscript "
+                    "沒有產生輸出 PDF。"
+                )
+            )
+
+        emit(
+            progress_callback,
+            (
+                "Ghostscript "
+                "頁面處理完成"
+            ),
+            "INFO",
+            94
+        )
+
+        return {
+
+            "ok":
+                True,
+
+            "diagnostic":
+                "\n".join(
+                    recent_lines
+                ),
+        }
+
+    except CompressionCancelled:
+
+        terminate_process(
+            process
+        )
+
+        safe_unlink(
+            output_file
+        )
+
+        raise
+
+    except subprocess.TimeoutExpired:
+
+        terminate_process(
+            process
+        )
+
+        safe_unlink(
+            output_file
+        )
+
+        return {
+
+            "ok":
+                False,
+
+            "error":
+                (
+                    "Ghostscript "
+                    "執行時間超過限制。"
+                ),
+
+            "diagnostic":
+                "\n".join(
+                    recent_lines
+                ),
+        }
+
+    except Exception as error:
+
+        terminate_process(
+            process
+        )
+
+        safe_unlink(
+            output_file
+        )
+
+        return {
+
+            "ok":
+                False,
+
+            "error":
+                str(error),
+
+            "diagnostic":
+                "\n".join(
+                    recent_lines
+                ),
+        }
+
+    finally:
+
+        if (
+            process
+            and process.stdout
+        ):
+
+            try:
+
+                process.stdout.close()
+
+            except Exception:
+
+                pass
+
+
+# =========================================================
+# Short error
+# =========================================================
+
+def short_error(
+    result
+):
+
+    if result.get(
+        "error"
+    ):
+
+        return str(
+            result[
+                "error"
+            ]
+        )
+
+    diagnostic = (
+        result.get(
+            "diagnostic",
+            ""
+        )
+        .strip()
+    )
+
+    if not diagnostic:
+
+        return (
+            "Ghostscript "
+            "沒有提供錯誤資訊。"
+        )
+
+    lines = [
+
+        line
+
+        for line
+        in diagnostic.splitlines()
+
+        if line.strip()
+    ]
+
+    return "\n".join(
+        lines[-3:]
+    )
+
+
+# =========================================================
+# Disk preflight
+# =========================================================
+
+def check_disk_preflight(
+    source_size,
+    progress_callback=None,
+):
+
+    required = int(
+        source_size
+        * DISK_SPACE_MULTIPLIER
+    )
+
+    disk = (
+        get_disk_space(
+            TEMP
+        )
+    )
+
+    emit(
+        progress_callback,
+        (
+            "Temp 可用空間："
+            f"{format_size(disk['free'])}"
+        )
+    )
+
+    emit(
+        progress_callback,
+        (
+            "建議工作空間："
+            f"{format_size(required)}"
+        )
+    )
+
+    if not (
+        has_enough_disk_space(
+            TEMP,
+            required
+        )
+    ):
+
+        raise RuntimeError(
+            (
+                "磁碟空間不足。\n"
+                "可用："
+                f"{format_size(disk['free'])}\n"
+                "建議至少："
+                f"{format_size(required)}"
+            )
+        )
+
+
+# =========================================================
+# Main compression
+# =========================================================
+
 def compress_pdf(
     file_path,
     quality="medium",
+    custom_dpi=200,
     delete_source=True,
     progress_callback=None,
+    cancel_event=None,
 ):
 
     source = Path(
         file_path
     )
 
-    if not source.exists():
+    # =====================================================
+    # Validate input
+    # =====================================================
+
+    if not (
+        source.exists()
+    ):
 
         raise FileNotFoundError(
             f"找不到檔案：{source}"
@@ -113,7 +1008,10 @@ def compress_pdf(
     ):
 
         raise ValueError(
-            f"未知壓縮品質：{quality}"
+            (
+                "未知壓縮模式："
+                f"{quality}"
+            )
         )
 
     setting = (
@@ -122,34 +1020,71 @@ def compress_pdf(
         ]
     )
 
+    if (
+        quality
+        == "custom"
+    ):
+
+        effective_dpi = (
+            validate_dpi(
+                custom_dpi
+            )
+        )
+
+    else:
+
+        effective_dpi = (
+            setting[
+                "dpi"
+            ]
+        )
+
     log_name = (
         setting[
             "log_name"
         ]
     )
 
-    emit(
-        progress_callback,
-        f"讀取 PDF：{source.name}"
-    )
+    # =====================================================
+    # Initial cancel
+    # =====================================================
+
+    if (
+        cancel_event
+        and
+        cancel_event.is_set()
+    ):
+
+        raise CompressionCancelled(
+            "使用者取消壓縮。"
+        )
+
+    # =====================================================
+    # Wait for stable file
+    # =====================================================
 
     emit(
         progress_callback,
         (
-            "壓縮模式："
-            f"{setting['name']}"
-        )
+            "讀取 PDF："
+            f"{source.name}"
+        ),
+        "INFO",
+        0
     )
 
-    if not wait_until_ready(
-        source
+    if not (
+        wait_until_ready(
+            source,
+            timeout=60
+        )
     ):
 
         log_skipped(
             log_name,
             (
                 f"{source.name} | "
-                "尚未準備完成"
+                "檔案尚未準備完成"
             )
         )
 
@@ -157,113 +1092,422 @@ def compress_pdf(
             "PDF 尚未準備完成。"
         )
 
-    output_file = None
+    # =====================================================
+    # Source information
+    # =====================================================
+
+    original_size = (
+        source.stat().st_size
+    )
+
+    original_text = (
+        format_size(
+            original_size
+        )
+    )
+
+    emit(
+        progress_callback,
+        "正在分析 PDF...",
+        "INFO",
+        0
+    )
 
     try:
 
-        original_size = (
-            source.stat().st_size
-        )
-
-        original_text = (
-            format_size(
-                original_size
+        total_pages = (
+            get_pdf_page_count(
+                source
             )
         )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            (
+                "無法讀取 PDF："
+                f"{error}"
+            )
+        ) from error
+
+    if total_pages <= 0:
+
+        raise RuntimeError(
+            "PDF 沒有有效頁面。"
+        )
+
+    emit(
+        progress_callback,
+        (
+            f"PDF："
+            f"{total_pages} 頁 / "
+            f"{original_text}"
+        ),
+        "INFO",
+        0
+    )
+
+    # =====================================================
+    # Disk check
+    # =====================================================
+
+    check_disk_preflight(
+        original_size,
+        progress_callback
+    )
+
+    # =====================================================
+    # Large mode
+    # =====================================================
+
+    is_large_pdf = (
+        original_size
+        >= LARGE_PDF_SIZE
+    )
+
+    if is_large_pdf:
 
         emit(
             progress_callback,
-            (
-                "原始大小："
-                f"{original_text}"
-            )
+            "大型 PDF 模式",
+            "WARNING",
+            0
         )
 
-        output_file = unique_path(
+    # =====================================================
+    # Temp / final
+    # =====================================================
+
+    temp_output = (
+        TEMP
+        /
+        (
+            "compress_"
+            + uuid.uuid4().hex
+            + ".pdf"
+        )
+    )
+
+    final_output = (
+        unique_path(
             COMPRESS_OUTPUT,
             (
                 source.stem
                 + "_compressed.pdf"
             )
         )
+    )
 
-        command = [
+    used_strategy = None
 
-            GHOSTSCRIPT,
+    # =====================================================
+    # Compression
+    # =====================================================
 
-            "-sDEVICE=pdfwrite",
+    try:
 
-            "-dCompatibilityLevel=1.4",
+        # =================================================
+        # Lossless
+        # =================================================
 
-            (
-                "-dPDFSETTINGS="
-                f"{setting['ghostscript']}"
-            ),
+        if (
+            quality
+            == "lossless"
+        ):
 
-            "-dNOPAUSE",
-            "-dQUIET",
-            "-dBATCH",
+            emit(
+                progress_callback,
+                "無損最佳化模式",
+                "INFO",
+                0
+            )
 
-            (
-                f"-sOutputFile="
-                f"{output_file}"
-            ),
+            command = (
+                build_lossless_command(
+                    source,
+                    temp_output,
+                )
+            )
 
-            str(source),
-        ]
+            used_strategy = (
+                "無損最佳化"
+            )
+
+        # =================================================
+        # Large PDF
+        # =================================================
+
+        elif is_large_pdf:
+
+            emit(
+                progress_callback,
+                (
+                    "跳過一般 preset，"
+                    f"直接使用 {effective_dpi} DPI"
+                ),
+                "INFO",
+                0
+            )
+
+            command = (
+                build_downsample_command(
+                    source,
+                    temp_output,
+                    effective_dpi,
+                )
+            )
+
+            used_strategy = (
+                (
+                    "大型 PDF / "
+                    f"{effective_dpi} DPI"
+                )
+            )
+
+        # =================================================
+        # Custom
+        # =================================================
+
+        elif (
+            quality
+            == "custom"
+        ):
+
+            emit(
+                progress_callback,
+                (
+                    "自訂壓縮："
+                    f"{effective_dpi} DPI"
+                ),
+                "INFO",
+                0
+            )
+
+            command = (
+                build_downsample_command(
+                    source,
+                    temp_output,
+                    effective_dpi,
+                )
+            )
+
+            used_strategy = (
+                (
+                    "自訂 / "
+                    f"{effective_dpi} DPI"
+                )
+            )
+
+        # =================================================
+        # Standard
+        # =================================================
+
+        else:
+
+            emit(
+                progress_callback,
+                (
+                    "Ghostscript "
+                    f"{setting['ghostscript']}"
+                ),
+                "INFO",
+                0
+            )
+
+            command = (
+                build_preset_command(
+                    source,
+                    temp_output,
+                    setting[
+                        "ghostscript"
+                    ],
+                )
+            )
+
+            used_strategy = (
+                (
+                    "標準 / "
+                    f"{setting['ghostscript']}"
+                )
+            )
+
+        # =================================================
+        # Run
+        # =================================================
+
+        result = (
+            run_ghostscript(
+                command,
+                temp_output,
+                total_pages,
+                progress_callback=(
+                    progress_callback
+                ),
+                cancel_event=(
+                    cancel_event
+                ),
+            )
+        )
+
+        # =================================================
+        # Fallback for regular preset only
+        # =================================================
+
+        if (
+            not result[
+                "ok"
+            ]
+            and
+            quality
+            in (
+                "low",
+                "medium",
+                "high",
+            )
+            and
+            not is_large_pdf
+        ):
+
+            emit(
+                progress_callback,
+                (
+                    "標準模式失敗，"
+                    "改用圖片降採樣"
+                ),
+                "WARNING",
+                0
+            )
+
+            safe_unlink(
+                temp_output
+            )
+
+            command = (
+                build_downsample_command(
+                    source,
+                    temp_output,
+                    effective_dpi,
+                )
+            )
+
+            result = (
+                run_ghostscript(
+                    command,
+                    temp_output,
+                    total_pages,
+                    progress_callback=(
+                        progress_callback
+                    ),
+                    cancel_event=(
+                        cancel_event
+                    ),
+                )
+            )
+
+            used_strategy = (
+                (
+                    "Fallback / "
+                    f"{effective_dpi} DPI"
+                )
+            )
+
+        if not result[
+            "ok"
+        ]:
+
+            raise RuntimeError(
+                short_error(
+                    result
+                )
+            )
+
+        # =================================================
+        # Cancellation
+        # =================================================
+
+        if (
+            cancel_event
+            and
+            cancel_event.is_set()
+        ):
+
+            safe_unlink(
+                temp_output
+            )
+
+            raise CompressionCancelled(
+                "使用者取消壓縮。"
+            )
+
+        # =================================================
+        # Validate PDF
+        # =================================================
 
         emit(
             progress_callback,
-            "Ghostscript 壓縮中..."
+            "正在驗證 PDF...",
+            "INFO",
+            95
         )
 
-        subprocess.run(
-            command,
-            check=True
+        validation = (
+            validate_pdf(
+                temp_output,
+                expected_pages=(
+                    total_pages
+                )
+            )
         )
 
-        if (
-            not output_file.exists()
-            or
-            output_file.stat().st_size
-            <= 0
+        if not (
+            validation[
+                "ok"
+            ]
         ):
 
             raise RuntimeError(
-                "Ghostscript 沒有產生有效 PDF。"
+                (
+                    "輸出 PDF 驗證失敗："
+                    f"{validation['error']}"
+                )
             )
 
-        compressed_size = (
-            output_file.stat().st_size
-        )
-
-        compressed_text = (
-            format_size(
-                compressed_size
-            )
-        )
+        # =================================================
+        # Size comparison
+        # =================================================
 
         emit(
             progress_callback,
-            (
-                "壓縮結果："
-                f"{compressed_text}"
+            "正在比較檔案大小...",
+            "INFO",
+            97
+        )
+
+        output_size = (
+            temp_output
+            .stat()
+            .st_size
+        )
+
+        output_text = (
+            format_size(
+                output_size
             )
         )
 
         # =================================================
-        # Compression successful
+        # Smaller result
         # =================================================
 
         if (
-            compressed_size
+            output_size
             < original_size
         ):
 
             reduction = (
                 (
                     1
-                    - compressed_size
+                    - output_size
                     / original_size
                 )
                 * 100
@@ -271,58 +1515,101 @@ def compress_pdf(
 
             emit(
                 progress_callback,
-                (
-                    f"成功減少 "
-                    f"{reduction:.1f}%"
-                ),
-                "SUCCESS",
-                100
+                "正在建立正式輸出...",
+                "INFO",
+                98
+            )
+
+            shutil.move(
+                str(temp_output),
+                str(final_output)
             )
 
             if delete_source:
 
                 source.unlink()
 
+            emit(
+                progress_callback,
+                (
+                    f"{original_text} → "
+                    f"{output_text}"
+                ),
+                "SUCCESS"
+            )
+
+            emit(
+                progress_callback,
+                (
+                    f"減少 "
+                    f"{reduction:.1f}%"
+                ),
+                "SUCCESS",
+                100
+            )
+
             log_success(
                 log_name,
                 (
                     f"{source.name} -> "
-                    f"{output_file.name} | "
+                    f"{final_output.name} | "
                     f"{original_text} -> "
-                    f"{compressed_text} | "
-                    f"-{reduction:.1f}%"
+                    f"{output_text} | "
+                    f"-{reduction:.1f}% | "
+                    f"{used_strategy}"
                 )
             )
 
             return {
+
                 "output":
-                    output_file,
+                    final_output,
 
                 "compressed":
                     True,
+
+                "cancelled":
+                    False,
+
+                "large_pdf":
+                    is_large_pdf,
 
                 "original_size":
                     original_size,
 
                 "output_size":
-                    compressed_size,
+                    output_size,
 
                 "reduction":
                     reduction,
+
+                "strategy":
+                    used_strategy,
+
+                "dpi":
+                    effective_dpi,
+
+                "pages":
+                    total_pages,
             }
 
         # =================================================
-        # Compression not worthwhile
+        # Not smaller
         # =================================================
+
+        safe_unlink(
+            temp_output
+        )
 
         emit(
             progress_callback,
-            "壓縮後沒有變小",
+            (
+                "輸出沒有比原始 PDF 小，"
+                "已捨棄結果"
+            ),
             "WARNING",
             100
         )
-
-        output_file.unlink()
 
         if delete_source:
 
@@ -338,28 +1625,27 @@ def compress_pdf(
                 str(original_output)
             )
 
-            output = (
+            preserved_output = (
                 original_output
             )
 
         else:
 
-            output = None
-
-        log_success(
-            log_name,
-            (
-                f"{source.name} | "
-                "無需壓縮"
-            )
-        )
+            preserved_output = None
 
         return {
+
             "output":
-                output,
+                preserved_output,
 
             "compressed":
                 False,
+
+            "cancelled":
+                False,
+
+            "large_pdf":
+                is_large_pdf,
 
             "original_size":
                 original_size,
@@ -369,26 +1655,90 @@ def compress_pdf(
 
             "reduction":
                 0,
+
+            "strategy":
+                used_strategy,
+
+            "dpi":
+                effective_dpi,
+
+            "pages":
+                total_pages,
         }
 
-    except Exception as error:
+    # =====================================================
+    # Cancellation
+    # =====================================================
 
-        if (
-            output_file
-            and output_file.exists()
-        ):
+    except CompressionCancelled:
 
-            try:
-
-                output_file.unlink()
-
-            except OSError:
-
-                pass
+        safe_unlink(
+            temp_output
+        )
 
         emit(
             progress_callback,
-            f"壓縮失敗：{error}",
+            "壓縮已取消",
+            "WARNING"
+        )
+
+        log_skipped(
+            log_name,
+            (
+                f"{source.name} | "
+                "使用者取消"
+            )
+        )
+
+        return {
+
+            "output":
+                None,
+
+            "compressed":
+                False,
+
+            "cancelled":
+                True,
+
+            "large_pdf":
+                is_large_pdf,
+
+            "original_size":
+                original_size,
+
+            "output_size":
+                None,
+
+            "reduction":
+                None,
+
+            "strategy":
+                used_strategy,
+
+            "dpi":
+                effective_dpi,
+
+            "pages":
+                total_pages,
+        }
+
+    # =====================================================
+    # Failure
+    # =====================================================
+
+    except Exception as error:
+
+        safe_unlink(
+            temp_output
+        )
+
+        emit(
+            progress_callback,
+            (
+                "壓縮失敗："
+                f"{error}"
+            ),
             "ERROR"
         )
 

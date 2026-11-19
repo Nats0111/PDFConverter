@@ -20,12 +20,14 @@ from tkinterdnd2 import (
 from config import (
     APP_NAME,
     APP_VERSION,
+    TEMP,
     MD_OUTPUT,
     COMPRESS_OUTPUT,
     IMAGE_TO_PDF_OUTPUT,
     MERGE_OUTPUT,
     SPLIT_OUTPUT,
     OCR_OUTPUT,
+    SCAN_OUTPUT,
     LOGS,
 )
 
@@ -36,6 +38,11 @@ from settings import (
 
 from environment import (
     check_environment,
+)
+
+from utils import (
+    cleanup_temp_folder,
+    format_size,
 )
 
 from processors.markdown import (
@@ -63,6 +70,10 @@ from processors.ocr_pdf import (
     ocr_pdf,
 )
 
+from processors.scan_optimize import (
+    optimize_scanned_pdf,
+)
+
 
 SUPPORTED_IMAGES = {
     ".jpg",
@@ -83,7 +94,7 @@ class ConverterGUI:
 
     def __init__(
         self,
-        root
+        root,
     ):
 
         self.root = root
@@ -93,11 +104,11 @@ class ConverterGUI:
         )
 
         self.root.geometry(
-            "920x880"
+            "1000x900"
         )
 
         self.root.minsize(
-            800,
+            860,
             720
         )
 
@@ -111,22 +122,22 @@ class ConverterGUI:
 
         self.worker = None
 
-        self.stop_requested = (
+        self.cancel_event = (
             threading.Event()
         )
 
         # =================================================
-        # Files
+        # File lists
         # =================================================
 
         self.batch_files = []
 
         self.merge_files = []
 
-        self.failed_files = []
+        self.job_rows = {}
 
         # =================================================
-        # Load settings
+        # Settings
         # =================================================
 
         self.settings = (
@@ -134,7 +145,7 @@ class ConverterGUI:
         )
 
         # =================================================
-        # General vars
+        # General variables
         # =================================================
 
         self.function_var = (
@@ -180,6 +191,17 @@ class ConverterGUI:
             )
         )
 
+        self.custom_dpi_var = (
+            tk.StringVar(
+                value=str(
+                    self.settings.get(
+                        "custom_dpi",
+                        200
+                    )
+                )
+            )
+        )
+
         # =================================================
         # Merge
         # =================================================
@@ -210,7 +232,7 @@ class ConverterGUI:
         # OCR
         # =================================================
 
-        languages = set(
+        saved_languages = set(
             self.settings.get(
                 "ocr_languages",
                 [
@@ -224,7 +246,7 @@ class ConverterGUI:
             tk.BooleanVar(
                 value=(
                     "eng"
-                    in languages
+                    in saved_languages
                 )
             )
         )
@@ -233,7 +255,7 @@ class ConverterGUI:
             tk.BooleanVar(
                 value=(
                     "chi_tra"
-                    in languages
+                    in saved_languages
                 )
             )
         )
@@ -242,7 +264,7 @@ class ConverterGUI:
             tk.BooleanVar(
                 value=(
                     "ita"
-                    in languages
+                    in saved_languages
                 )
             )
         )
@@ -281,12 +303,25 @@ class ConverterGUI:
         )
 
         # =================================================
+        # Scan optimize
+        # =================================================
+
+        self.scan_optimize_level = (
+            tk.IntVar(
+                value=int(
+                    self.settings.get(
+                        "scan_optimize_level",
+                        1
+                    )
+                )
+            )
+        )
+
+        # =================================================
         # Style
         # =================================================
 
-        self.style = (
-            ttk.Style()
-        )
+        self.style = ttk.Style()
 
         try:
 
@@ -322,7 +357,7 @@ class ConverterGUI:
 
         self.main = ttk.Frame(
             root,
-            padding=20
+            padding=16
         )
 
         self.main.pack(
@@ -332,39 +367,29 @@ class ConverterGUI:
 
         self.build_ui()
 
-        # =================================================
-        # Queue polling
-        # =================================================
+        self.root.protocol(
+            "WM_DELETE_WINDOW",
+            self.on_close
+        )
 
         self.root.after(
             100,
             self.check_event_queue
         )
 
-        # =================================================
-        # Window close
-        # =================================================
-
-        self.root.protocol(
-            "WM_DELETE_WINDOW",
-            self.on_close
-        )
-
-        # =================================================
-        # Environment initial check
-        # =================================================
-
         self.root.after(
-            300,
-            self.run_environment_check
+            250,
+            self.startup_tasks
         )
 
 
     # =====================================================
-    # Build main UI
+    # Main UI
     # =====================================================
 
-    def build_ui(self):
+    def build_ui(
+        self
+    ):
 
         # =================================================
         # Header
@@ -388,21 +413,22 @@ class ConverterGUI:
 
         ttk.Label(
             header,
-            text=f"V{APP_VERSION}"
+            text=(
+                f"V{APP_VERSION}"
+            )
         ).pack(
-            side="right",
-            anchor="e"
+            side="right"
         )
 
         ttk.Label(
             self.main,
             text=(
-                "Batch Processing / "
-                "PDF Tools / OCR / Markdown"
+                "PDF / OCR / Markdown / "
+                "Batch Processing"
             )
         ).pack(
             anchor="w",
-            pady=(0, 14)
+            pady=(0, 12)
         )
 
         # =================================================
@@ -419,7 +445,7 @@ class ConverterGUI:
 
         function_frame.pack(
             fill="x",
-            pady=(0, 10)
+            pady=(0, 8)
         )
 
         self.function_combo = (
@@ -436,6 +462,7 @@ class ConverterGUI:
                     "PDF 合併",
                     "PDF 拆分",
                     "PDF OCR",
+                    "掃描文件最佳化",
                 ]
             )
         )
@@ -450,7 +477,7 @@ class ConverterGUI:
         )
 
         # =================================================
-        # Options container
+        # Options
         # =================================================
 
         self.options_container = (
@@ -460,12 +487,177 @@ class ConverterGUI:
         )
 
         self.options_container.pack(
-            fill="both",
+            fill="x",
             pady=(0, 8)
         )
 
         # =================================================
-        # Action buttons
+        # Job Queue
+        # =================================================
+
+        queue_frame = (
+            ttk.LabelFrame(
+                self.main,
+                text="工作佇列",
+                padding=6
+            )
+        )
+
+        queue_frame.pack(
+            fill="both",
+            pady=(0, 8)
+        )
+
+        tree_container = ttk.Frame(
+            queue_frame
+        )
+
+        tree_container.pack(
+            fill="both",
+            expand=True
+        )
+
+        self.job_tree = ttk.Treeview(
+            tree_container,
+            columns=(
+                "status",
+                "progress",
+                "result",
+            ),
+            show="tree headings",
+            height=7
+        )
+
+        self.job_tree.heading(
+            "#0",
+            text="檔案"
+        )
+
+        self.job_tree.heading(
+            "status",
+            text="狀態"
+        )
+
+        self.job_tree.heading(
+            "progress",
+            text="進度"
+        )
+
+        self.job_tree.heading(
+            "result",
+            text="結果"
+        )
+
+        self.job_tree.column(
+            "#0",
+            width=430,
+            minwidth=200
+        )
+
+        self.job_tree.column(
+            "status",
+            width=90,
+            anchor="center"
+        )
+
+        self.job_tree.column(
+            "progress",
+            width=80,
+            anchor="center"
+        )
+
+        self.job_tree.column(
+            "result",
+            width=180,
+            anchor="w"
+        )
+
+        self.job_tree.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        tree_scroll = ttk.Scrollbar(
+            tree_container,
+            orient="vertical",
+            command=(
+                self.job_tree.yview
+            )
+        )
+
+        tree_scroll.pack(
+            side="right",
+            fill="y"
+        )
+
+        self.job_tree.config(
+            yscrollcommand=(
+                tree_scroll.set
+            )
+        )
+
+        self.job_tree.drop_target_register(
+            DND_FILES
+        )
+
+        self.job_tree.dnd_bind(
+            "<<Drop>>",
+            self.on_tree_drop
+        )
+
+        # =================================================
+        # Job Buttons
+        # =================================================
+
+        job_buttons = ttk.Frame(
+            queue_frame
+        )
+
+        job_buttons.pack(
+            fill="x",
+            pady=(6, 0)
+        )
+
+        self.add_button = (
+            ttk.Button(
+                job_buttons,
+                text="新增檔案",
+                command=self.add_files
+            )
+        )
+
+        self.add_button.pack(
+            side="left"
+        )
+
+        self.remove_button = (
+            ttk.Button(
+                job_buttons,
+                text="移除選取",
+                command=self.remove_selected
+            )
+        )
+
+        self.remove_button.pack(
+            side="left",
+            padx=5
+        )
+
+        self.clear_button = (
+            ttk.Button(
+                job_buttons,
+                text="清空",
+                command=self.clear_files
+            )
+        )
+
+        self.clear_button.pack(
+            side="left"
+        )
+
+        # =================================================
+        # Start / Cancel
         # =================================================
 
         action_frame = ttk.Frame(
@@ -474,7 +666,7 @@ class ConverterGUI:
 
         action_frame.pack(
             fill="x",
-            pady=(2, 8)
+            pady=(0, 8)
         )
 
         self.start_button = (
@@ -492,19 +684,21 @@ class ConverterGUI:
             ipady=6
         )
 
-        self.stop_button = (
+        self.cancel_button = (
             ttk.Button(
                 action_frame,
-                text="停止批次",
-                command=self.request_stop,
+                text="取消目前工作",
+                command=(
+                    self.cancel_current_job
+                ),
                 state="disabled"
             )
         )
 
-        self.stop_button.pack(
+        self.cancel_button.pack(
             side="left",
             padx=(8, 0),
-            ipadx=15,
+            ipadx=10,
             ipady=6
         )
 
@@ -512,7 +706,7 @@ class ConverterGUI:
         # Progress
         # =================================================
 
-        progress_area = (
+        progress_frame = (
             ttk.LabelFrame(
                 self.main,
                 text="處理進度",
@@ -520,32 +714,28 @@ class ConverterGUI:
             )
         )
 
-        progress_area.pack(
+        progress_frame.pack(
             fill="x",
             pady=(0, 8)
         )
 
-        # Current
-
-        current_frame = (
-            ttk.Frame(
-                progress_area
-            )
+        current_row = ttk.Frame(
+            progress_frame
         )
 
-        current_frame.pack(
+        current_row.pack(
             fill="x"
         )
 
         ttk.Label(
-            current_frame,
+            current_row,
             text="目前："
         ).pack(
             side="left"
         )
 
         ttk.Label(
-            current_frame,
+            current_row,
             textvariable=(
                 self.current_file_var
             )
@@ -553,26 +743,28 @@ class ConverterGUI:
             side="left"
         )
 
+        # =================================================
         # File progress
+        # =================================================
 
-        file_header = ttk.Frame(
-            progress_area
+        file_row = ttk.Frame(
+            progress_frame
         )
 
-        file_header.pack(
+        file_row.pack(
             fill="x",
-            pady=(8, 2)
+            pady=(7, 2)
         )
 
         ttk.Label(
-            file_header,
-            text="檔案進度"
+            file_row,
+            text="目前檔案"
         ).pack(
             side="left"
         )
 
         ttk.Label(
-            file_header,
+            file_row,
             textvariable=(
                 self.file_progress_text
             )
@@ -582,7 +774,7 @@ class ConverterGUI:
 
         self.file_progress = (
             ttk.Progressbar(
-                progress_area,
+                progress_frame,
                 maximum=100,
                 mode="determinate"
             )
@@ -592,26 +784,28 @@ class ConverterGUI:
             fill="x"
         )
 
+        # =================================================
         # Batch progress
+        # =================================================
 
-        batch_header = ttk.Frame(
-            progress_area
+        batch_row = ttk.Frame(
+            progress_frame
         )
 
-        batch_header.pack(
+        batch_row.pack(
             fill="x",
-            pady=(8, 2)
+            pady=(7, 2)
         )
 
         ttk.Label(
-            batch_header,
-            text="整體進度"
+            batch_row,
+            text="整體工作"
         ).pack(
             side="left"
         )
 
         ttk.Label(
-            batch_header,
+            batch_row,
             textvariable=(
                 self.batch_progress_text
             )
@@ -621,7 +815,7 @@ class ConverterGUI:
 
         self.batch_progress = (
             ttk.Progressbar(
-                progress_area,
+                progress_frame,
                 maximum=100,
                 mode="determinate"
             )
@@ -632,14 +826,14 @@ class ConverterGUI:
         )
 
         ttk.Label(
-            progress_area,
+            progress_frame,
             textvariable=(
                 self.status_var
             ),
             style="Status.TLabel"
         ).pack(
             anchor="w",
-            pady=(8, 0)
+            pady=(7, 0)
         )
 
         # =================================================
@@ -660,40 +854,29 @@ class ConverterGUI:
             pady=(0, 8)
         )
 
-        console_container = (
-            ttk.Frame(
-                console_frame
-            )
+        console_inner = ttk.Frame(
+            console_frame
         )
 
-        console_container.pack(
+        console_inner.pack(
             fill="both",
             expand=True
         )
 
         self.console = tk.Text(
-            console_container,
-            height=10,
+            console_inner,
+            height=9,
             wrap="word",
-
             bg="#101419",
             fg="#D7E0EA",
-
-            insertbackground="white",
-
-            selectbackground="#36536B",
-
             font=(
                 "Consolas",
                 9
             ),
-
             state="disabled",
-
             relief="flat",
-
             padx=8,
-            pady=8,
+            pady=8
         )
 
         self.console.pack(
@@ -704,7 +887,7 @@ class ConverterGUI:
 
         console_scroll = (
             ttk.Scrollbar(
-                console_container,
+                console_inner,
                 orient="vertical",
                 command=(
                     self.console.yview
@@ -749,7 +932,7 @@ class ConverterGUI:
         )
 
         # =================================================
-        # Bottom bar
+        # Bottom
         # =================================================
 
         bottom = ttk.Frame(
@@ -771,7 +954,9 @@ class ConverterGUI:
         ttk.Button(
             bottom,
             text="檢查環境",
-            command=self.run_environment_check
+            command=(
+                self.run_environment_check
+            )
         ).pack(
             side="left",
             padx=5
@@ -794,10 +979,12 @@ class ConverterGUI:
         )
 
         # =================================================
-        # Dynamic section
+        # Initial
         # =================================================
 
         self.rebuild_options()
+
+        self.refresh_job_tree()
 
         self.console_log(
             (
@@ -809,10 +996,49 @@ class ConverterGUI:
 
 
     # =====================================================
-    # Dynamic UI
+    # Startup
     # =====================================================
 
-    def clear_options_container(
+    def startup_tasks(
+        self
+    ):
+
+        try:
+
+            removed = (
+                cleanup_temp_folder(
+                    TEMP
+                )
+            )
+
+            if removed:
+
+                self.console_log(
+                    (
+                        "已清理上次殘留 Temp："
+                        f"{removed} 個項目"
+                    ),
+                    "SYSTEM"
+                )
+
+        except Exception as error:
+
+            self.console_log(
+                (
+                    "Temp 清理失敗："
+                    f"{error}"
+                ),
+                "WARNING"
+            )
+
+        self.run_environment_check()
+
+
+    # =====================================================
+    # Options
+    # =====================================================
+
+    def clear_options(
         self
     ):
 
@@ -828,22 +1054,11 @@ class ConverterGUI:
         self
     ):
 
-        self.clear_options_container()
+        self.clear_options()
 
         function = (
             self.function_var.get()
         )
-
-        if (
-            function
-            == "PDF 合併"
-        ):
-
-            self.build_merge_options()
-
-            return
-
-        self.build_batch_options()
 
         if (
             function
@@ -854,10 +1069,10 @@ class ConverterGUI:
 
         elif (
             function
-            == "PDF OCR"
+            == "PDF 合併"
         ):
 
-            self.build_ocr_options()
+            self.build_merge_options()
 
         elif (
             function
@@ -866,157 +1081,23 @@ class ConverterGUI:
 
             self.build_split_options()
 
-
-    def on_function_changed(
-        self,
-        event=None
-    ):
-
-        if (
-            self.worker
-            and self.worker.is_alive()
+        elif (
+            function
+            == "PDF OCR"
         ):
 
-            return
-
-        self.batch_files.clear()
-
-        self.merge_files.clear()
-
-        self.failed_files.clear()
-
-        self.rebuild_options()
-
-        self.reset_progress()
-
-        self.status_var.set(
-            "等待操作"
-        )
-
-
-    # =====================================================
-    # Batch options
-    # =====================================================
-
-    def build_batch_options(
-        self
-    ):
-
-        self.batch_frame = (
-            ttk.LabelFrame(
-                self.options_container,
-                text=(
-                    "待處理檔案"
-                    "（可直接拖入）"
-                ),
-                padding=8
+            self.build_ocr_options(
+                scan_mode=False
             )
-        )
 
-        self.batch_frame.pack(
-            fill="both",
-            pady=(0, 8)
-        )
+        elif (
+            function
+            == "掃描文件最佳化"
+        ):
 
-        list_container = (
-            ttk.Frame(
-                self.batch_frame
+            self.build_ocr_options(
+                scan_mode=True
             )
-        )
-
-        list_container.pack(
-            fill="both",
-            expand=True
-        )
-
-        self.batch_list = (
-            tk.Listbox(
-                list_container,
-                height=6,
-                selectmode=(
-                    tk.EXTENDED
-                )
-            )
-        )
-
-        self.batch_list.pack(
-            side="left",
-            fill="both",
-            expand=True
-        )
-
-        scrollbar = (
-            ttk.Scrollbar(
-                list_container,
-                orient="vertical",
-                command=(
-                    self.batch_list
-                    .yview
-                )
-            )
-        )
-
-        scrollbar.pack(
-            side="right",
-            fill="y"
-        )
-
-        self.batch_list.config(
-            yscrollcommand=(
-                scrollbar.set
-            )
-        )
-
-        self.batch_list.drop_target_register(
-            DND_FILES
-        )
-
-        self.batch_list.dnd_bind(
-            "<<Drop>>",
-            self.on_batch_drop
-        )
-
-        buttons = ttk.Frame(
-            self.batch_frame
-        )
-
-        buttons.pack(
-            fill="x",
-            pady=(7, 0)
-        )
-
-        ttk.Button(
-            buttons,
-            text="新增檔案",
-            command=(
-                self.add_batch_files
-            )
-        ).pack(
-            side="left"
-        )
-
-        ttk.Button(
-            buttons,
-            text="移除",
-            command=(
-                self.remove_batch_files
-            )
-        ).pack(
-            side="left",
-            padx=5
-        )
-
-        ttk.Button(
-            buttons,
-            text="清空",
-            command=(
-                self.clear_batch_files
-            )
-        ).pack(
-            side="left"
-        )
-
-        self.refresh_batch_list()
 
 
     # =====================================================
@@ -1029,7 +1110,7 @@ class ConverterGUI:
 
         frame = ttk.LabelFrame(
             self.options_container,
-            text="壓縮品質",
+            text="壓縮設定",
             padding=8
         )
 
@@ -1037,56 +1118,123 @@ class ConverterGUI:
             fill="x"
         )
 
-        ttk.Radiobutton(
-            frame,
-            text="強力",
-            variable=(
-                self.quality_var
+        choices = [
+
+            (
+                "無損最佳化",
+                "lossless"
             ),
-            value="low",
-            command=self.save_current_settings
-        ).pack(
-            side="left",
-            padx=(0, 25)
+
+            (
+                "強力 96 DPI",
+                "low"
+            ),
+
+            (
+                "平衡 150 DPI",
+                "medium"
+            ),
+
+            (
+                "高品質 300 DPI",
+                "high"
+            ),
+
+            (
+                "自訂 DPI",
+                "custom"
+            ),
+        ]
+
+        for text, value in (
+            choices
+        ):
+
+            ttk.Radiobutton(
+                frame,
+                text=text,
+                variable=(
+                    self.quality_var
+                ),
+                value=value,
+                command=(
+                    self.on_quality_change
+                )
+            ).pack(
+                side="left",
+                padx=(0, 16)
+            )
+
+        self.custom_dpi_entry = (
+            ttk.Entry(
+                frame,
+                textvariable=(
+                    self.custom_dpi_var
+                ),
+                width=7
+            )
         )
 
-        ttk.Radiobutton(
-            frame,
-            text="平衡",
-            variable=(
-                self.quality_var
-            ),
-            value="medium",
-            command=self.save_current_settings
-        ).pack(
-            side="left",
-            padx=(0, 25)
-        )
-
-        ttk.Radiobutton(
-            frame,
-            text="高品質",
-            variable=(
-                self.quality_var
-            ),
-            value="high",
-            command=self.save_current_settings
-        ).pack(
+        self.custom_dpi_entry.pack(
             side="left"
         )
 
+        ttk.Label(
+            frame,
+            text="DPI"
+        ).pack(
+            side="left",
+            padx=(4, 0)
+        )
+
+        self.on_quality_change()
+
+
+    def on_quality_change(
+        self
+    ):
+
+        if not hasattr(
+            self,
+            "custom_dpi_entry"
+        ):
+
+            return
+
+        if not (
+            self.custom_dpi_entry
+            .winfo_exists()
+        ):
+
+            return
+
+        state = (
+            "normal"
+            if (
+                self.quality_var.get()
+                == "custom"
+            )
+            else "disabled"
+        )
+
+        self.custom_dpi_entry.config(
+            state=state
+        )
+
+        self.save_current_settings()
+
 
     # =====================================================
-    # OCR options
+    # Merge options
     # =====================================================
 
-    def build_ocr_options(
+    def build_merge_options(
         self
     ):
 
         frame = ttk.LabelFrame(
             self.options_container,
-            text="OCR 設定",
+            text="PDF 合併設定",
             padding=8
         )
 
@@ -1096,109 +1244,31 @@ class ConverterGUI:
 
         ttk.Label(
             frame,
-            text="OCR 語言"
-        ).pack(
-            anchor="w"
-        )
-
-        languages = ttk.Frame(
-            frame
-        )
-
-        languages.pack(
-            fill="x",
-            pady=(5, 8)
-        )
-
-        ttk.Checkbutton(
-            languages,
-            text="English",
-            variable=(
-                self.ocr_eng
-            ),
-            command=(
-                self.save_current_settings
-            )
+            text="輸出檔名"
         ).pack(
             side="left"
         )
 
-        ttk.Checkbutton(
-            languages,
-            text="繁體中文",
-            variable=(
-                self.ocr_chi_tra
-            ),
-            command=(
-                self.save_current_settings
+        ttk.Entry(
+            frame,
+            textvariable=(
+                self.merge_output_name
             )
         ).pack(
             side="left",
-            padx=20
-        )
-
-        ttk.Checkbutton(
-            languages,
-            text="Italiano",
-            variable=(
-                self.ocr_ita
-            ),
-            command=(
-                self.save_current_settings
-            )
-        ).pack(
-            side="left"
-        )
-
-        ttk.Separator(
-            frame,
-            orient="horizontal"
-        ).pack(
             fill="x",
-            pady=(0, 8)
+            expand=True,
+            padx=(8, 0)
         )
 
-        ttk.Checkbutton(
-            frame,
-            text="自動旋轉",
-            variable=(
-                self.ocr_rotate
-            ),
-            command=(
-                self.save_current_settings
-            )
-        ).pack(
-            anchor="w"
-        )
-
-        ttk.Checkbutton(
-            frame,
-            text="歪斜校正",
-            variable=(
-                self.ocr_deskew
-            ),
-            command=(
-                self.save_current_settings
-            )
-        ).pack(
-            anchor="w"
-        )
-
-        ttk.Checkbutton(
+        ttk.Label(
             frame,
             text=(
-                "同時輸出 OCR "
-                "文字檔 (.txt)"
-            ),
-            variable=(
-                self.ocr_sidecar
-            ),
-            command=(
-                self.save_current_settings
+                "佇列順序即合併順序"
             )
         ).pack(
-            anchor="w",
-            pady=(5, 0)
+            side="right",
+            padx=(10, 0)
         )
 
 
@@ -1231,12 +1301,12 @@ class ConverterGUI:
                 self.update_split_ui
             )
         ).pack(
-            anchor="w"
+            side="left"
         )
 
         ttk.Radiobutton(
             frame,
-            text="每頁拆成獨立 PDF",
+            text="每頁獨立 PDF",
             variable=(
                 self.split_mode
             ),
@@ -1245,18 +1315,15 @@ class ConverterGUI:
                 self.update_split_ui
             )
         ).pack(
-            anchor="w",
-            pady=(2, 6)
+            side="left",
+            padx=15
         )
 
         ttk.Label(
             frame,
-            text=(
-                "頁碼，例如："
-                "1-5 或 1,3,8-10"
-            )
+            text="頁碼"
         ).pack(
-            anchor="w"
+            side="left"
         )
 
         self.split_pages_entry = (
@@ -1264,13 +1331,22 @@ class ConverterGUI:
                 frame,
                 textvariable=(
                     self.split_pages
-                )
+                ),
+                width=25
             )
         )
 
         self.split_pages_entry.pack(
-            fill="x",
-            pady=(3, 0)
+            side="left",
+            padx=(6, 0)
+        )
+
+        ttk.Label(
+            frame,
+            text="例如 1-5,8,10-12"
+        ).pack(
+            side="left",
+            padx=8
         )
 
         self.update_split_ui()
@@ -1294,345 +1370,188 @@ class ConverterGUI:
 
             return
 
-        if (
-            self.split_mode.get()
-            == "selected"
-        ):
+        self.split_pages_entry.config(
+            state=(
+                "normal"
+                if (
+                    self.split_mode.get()
+                    == "selected"
+                )
+                else "disabled"
+            )
+        )
 
-            self.split_pages_entry.config(
-                state="normal"
+
+    # =====================================================
+    # OCR / Scan options
+    # =====================================================
+
+    def build_ocr_options(
+        self,
+        scan_mode=False,
+    ):
+
+        frame = ttk.LabelFrame(
+            self.options_container,
+            text=(
+                "掃描文件最佳化設定"
+                if scan_mode
+                else "OCR 設定"
+            ),
+            padding=8
+        )
+
+        frame.pack(
+            fill="x"
+        )
+
+        ttk.Checkbutton(
+            frame,
+            text="English",
+            variable=self.ocr_eng,
+            command=(
+                self.save_current_settings
+            )
+        ).pack(
+            side="left"
+        )
+
+        ttk.Checkbutton(
+            frame,
+            text="繁體中文",
+            variable=(
+                self.ocr_chi_tra
+            ),
+            command=(
+                self.save_current_settings
+            )
+        ).pack(
+            side="left",
+            padx=12
+        )
+
+        ttk.Checkbutton(
+            frame,
+            text="Italiano",
+            variable=self.ocr_ita,
+            command=(
+                self.save_current_settings
+            )
+        ).pack(
+            side="left"
+        )
+
+        ttk.Checkbutton(
+            frame,
+            text="自動旋轉",
+            variable=self.ocr_rotate,
+            command=(
+                self.save_current_settings
+            )
+        ).pack(
+            side="left",
+            padx=(20, 0)
+        )
+
+        ttk.Checkbutton(
+            frame,
+            text="歪斜校正",
+            variable=self.ocr_deskew,
+            command=(
+                self.save_current_settings
+            )
+        ).pack(
+            side="left",
+            padx=10
+        )
+
+        if scan_mode:
+
+            ttk.Label(
+                frame,
+                text="最佳化"
+            ).pack(
+                side="left",
+                padx=(20, 3)
+            )
+
+            optimize_combo = (
+                ttk.Combobox(
+                    frame,
+                    textvariable=(
+                        self.scan_optimize_level
+                    ),
+                    values=[
+                        0,
+                        1,
+                        2,
+                        3,
+                    ],
+                    state="readonly",
+                    width=4
+                )
+            )
+
+            optimize_combo.pack(
+                side="left"
+            )
+
+            optimize_combo.bind(
+                "<<ComboboxSelected>>",
+                lambda event:
+                    self.save_current_settings()
             )
 
         else:
 
-            self.split_pages_entry.config(
-                state="disabled"
-            )
-
-
-    # =====================================================
-    # Merge options
-    # =====================================================
-
-    def build_merge_options(
-        self
-    ):
-
-        self.merge_frame = (
-            ttk.LabelFrame(
-                self.options_container,
-                text=(
-                    "PDF 合併"
-                    "（可直接拖入）"
+            ttk.Checkbutton(
+                frame,
+                text="輸出 TXT",
+                variable=(
+                    self.ocr_sidecar
                 ),
-                padding=8
-            )
-        )
-
-        self.merge_frame.pack(
-            fill="both"
-        )
-
-        list_frame = ttk.Frame(
-            self.merge_frame
-        )
-
-        list_frame.pack(
-            fill="both",
-            expand=True
-        )
-
-        self.merge_list = (
-            tk.Listbox(
-                list_frame,
-                height=7,
-                selectmode=(
-                    tk.SINGLE
-                )
-            )
-        )
-
-        self.merge_list.pack(
-            side="left",
-            fill="both",
-            expand=True
-        )
-
-        scrollbar = (
-            ttk.Scrollbar(
-                list_frame,
-                orient="vertical",
                 command=(
-                    self.merge_list
-                    .yview
+                    self.save_current_settings
                 )
+            ).pack(
+                side="left",
+                padx=(20, 0)
             )
-        )
-
-        scrollbar.pack(
-            side="right",
-            fill="y"
-        )
-
-        self.merge_list.config(
-            yscrollcommand=(
-                scrollbar.set
-            )
-        )
-
-        self.merge_list.drop_target_register(
-            DND_FILES
-        )
-
-        self.merge_list.dnd_bind(
-            "<<Drop>>",
-            self.on_merge_drop
-        )
-
-        buttons = ttk.Frame(
-            self.merge_frame
-        )
-
-        buttons.pack(
-            fill="x",
-            pady=(7, 6)
-        )
-
-        ttk.Button(
-            buttons,
-            text="加入 PDF",
-            command=(
-                self.add_merge_files
-            )
-        ).pack(
-            side="left"
-        )
-
-        ttk.Button(
-            buttons,
-            text="移除",
-            command=(
-                self.remove_merge_file
-            )
-        ).pack(
-            side="left",
-            padx=5
-        )
-
-        ttk.Button(
-            buttons,
-            text="↑",
-            width=4,
-            command=lambda:
-                self.move_merge(-1)
-        ).pack(
-            side="left"
-        )
-
-        ttk.Button(
-            buttons,
-            text="↓",
-            width=4,
-            command=lambda:
-                self.move_merge(1)
-        ).pack(
-            side="left",
-            padx=5
-        )
-
-        ttk.Button(
-            buttons,
-            text="清空",
-            command=(
-                self.clear_merge_files
-            )
-        ).pack(
-            side="left"
-        )
-
-        ttk.Label(
-            self.merge_frame,
-            text="輸出檔名"
-        ).pack(
-            anchor="w"
-        )
-
-        ttk.Entry(
-            self.merge_frame,
-            textvariable=(
-                self.merge_output_name
-            )
-        ).pack(
-            fill="x",
-            pady=(3, 0)
-        )
-
-        self.refresh_merge()
 
 
     # =====================================================
-    # Settings
+    # Switch function
     # =====================================================
 
-    def save_current_settings(
-        self
+    def on_function_changed(
+        self,
+        event=None,
     ):
 
-        languages = []
+        if self.is_running():
 
-        if self.ocr_eng.get():
+            return
 
-            languages.append(
-                "eng"
-            )
+        self.batch_files.clear()
 
-        if self.ocr_chi_tra.get():
+        self.merge_files.clear()
 
-            languages.append(
-                "chi_tra"
-            )
+        self.job_rows.clear()
 
-        if self.ocr_ita.get():
+        self.clear_tree()
 
-            languages.append(
-                "ita"
-            )
+        self.rebuild_options()
 
-        data = {
+        self.reset_progress()
 
-            "compression_quality":
-                self.quality_var.get(),
-
-            "ocr_languages":
-                languages,
-
-            "ocr_rotate":
-                bool(
-                    self.ocr_rotate.get()
-                ),
-
-            "ocr_deskew":
-                bool(
-                    self.ocr_deskew.get()
-                ),
-
-            "ocr_sidecar":
-                bool(
-                    self.ocr_sidecar.get()
-                ),
-        }
-
-        save_settings(
-            data
+        self.status_var.set(
+            "等待操作"
         )
 
 
     # =====================================================
-    # Environment check
+    # File validation
     # =====================================================
-
-    def run_environment_check(
-        self
-    ):
-
-        self.console_log(
-            "開始檢查執行環境",
-            "SYSTEM"
-        )
-
-        try:
-
-            report = (
-                check_environment()
-            )
-
-            for item in report:
-
-                if item["ok"]:
-
-                    self.console_log(
-                        (
-                            "✓ "
-                            f"{item['name']} "
-                            f"({item['detail']})"
-                        ),
-                        "SUCCESS"
-                    )
-
-                else:
-
-                    self.console_log(
-                        (
-                            "✗ "
-                            f"{item['name']} "
-                            f"({item['detail']})"
-                        ),
-                        "WARNING"
-                    )
-
-        except Exception as error:
-
-            self.console_log(
-                (
-                    "環境檢查失敗："
-                    f"{error}"
-                ),
-                "ERROR"
-            )
-
-
-    # =====================================================
-    # Add batch files
-    # =====================================================
-
-    def get_filetypes(
-        self
-    ):
-
-        function = (
-            self.function_var.get()
-        )
-
-        if function in (
-            "PDF 壓縮",
-            "PDF 拆分",
-            "PDF OCR",
-        ):
-
-            return [
-                (
-                    "PDF",
-                    "*.pdf"
-                )
-            ]
-
-        if (
-            function
-            == "Image → PDF"
-        ):
-
-            return [
-                (
-                    "圖片",
-                    (
-                        "*.jpg",
-                        "*.jpeg",
-                        "*.png",
-                        "*.webp",
-                        "*.bmp",
-                        "*.tif",
-                        "*.tiff",
-                    )
-                )
-            ]
-
-        return [
-            (
-                "所有檔案",
-                "*.*"
-            )
-        ]
-
 
     def file_allowed(
         self,
@@ -1649,8 +1568,10 @@ class ConverterGUI:
 
         if function in (
             "PDF 壓縮",
+            "PDF 合併",
             "PDF 拆分",
             "PDF OCR",
+            "掃描文件最佳化",
         ):
 
             return (
@@ -1678,29 +1599,107 @@ class ConverterGUI:
         return False
 
 
-    def add_batch_files(
+    # =====================================================
+    # Add files
+    # =====================================================
+
+    def add_files(
         self
     ):
 
-        files = (
-            filedialog
-            .askopenfilenames(
-                title="選擇檔案",
-                filetypes=(
-                    self.get_filetypes()
+        function = (
+            self.function_var.get()
+        )
+
+        if function in (
+            "PDF 壓縮",
+            "PDF 合併",
+            "PDF 拆分",
+            "PDF OCR",
+            "掃描文件最佳化",
+        ):
+
+            filetypes = [
+                (
+                    "PDF",
+                    "*.pdf"
                 )
+            ]
+
+        elif (
+            function
+            == "Image → PDF"
+        ):
+
+            filetypes = [
+                (
+                    "Images",
+                    (
+                        "*.jpg",
+                        "*.jpeg",
+                        "*.png",
+                        "*.webp",
+                        "*.bmp",
+                        "*.tif",
+                        "*.tiff",
+                    )
+                )
+            ]
+
+        else:
+
+            filetypes = [
+                (
+                    "All Files",
+                    "*.*"
+                )
+            ]
+
+        files = (
+            filedialog.askopenfilenames(
+                title="選擇檔案",
+                filetypes=filetypes
             )
         )
 
-        self.add_paths_to_batch(
+        self.add_paths(
             files
         )
 
 
-    def add_paths_to_batch(
+    def on_tree_drop(
+        self,
+        event
+    ):
+
+        paths = (
+            self.root.tk.splitlist(
+                event.data
+            )
+        )
+
+        self.add_paths(
+            paths
+        )
+
+
+    def add_paths(
         self,
         paths
     ):
+
+        function = (
+            self.function_var.get()
+        )
+
+        target = (
+            self.merge_files
+            if (
+                function
+                == "PDF 合併"
+            )
+            else self.batch_files
+        )
 
         added = 0
 
@@ -1714,30 +1713,31 @@ class ConverterGUI:
 
             if (
                 not path.is_file()
-                or not self.file_allowed(
+                or
+                not self.file_allowed(
                     path
                 )
             ):
 
                 skipped += 1
+
                 continue
 
-            file_string = str(
+            value = str(
                 path
             )
 
-            if (
-                file_string
-                not in self.batch_files
-            ):
+            if value in target:
 
-                self.batch_files.append(
-                    file_string
-                )
+                continue
 
-                added += 1
+            target.append(
+                value
+            )
 
-        self.refresh_batch_list()
+            added += 1
+
+        self.refresh_job_tree()
 
         if added:
 
@@ -1754,437 +1754,418 @@ class ConverterGUI:
             self.console_log(
                 (
                     f"略過 "
-                    f"{skipped} 個"
-                    "不符合目前功能的檔案"
+                    f"{skipped} 個檔案"
                 ),
                 "WARNING"
             )
 
 
-    def on_batch_drop(
-        self,
-        event
-    ):
-
-        paths = (
-            self.root.tk.splitlist(
-                event.data
-            )
-        )
-
-        self.add_paths_to_batch(
-            paths
-        )
-
-
-    def refresh_batch_list(
-        self
-    ):
-
-        if not hasattr(
-            self,
-            "batch_list"
-        ):
-
-            return
-
-        if not (
-            self.batch_list
-            .winfo_exists()
-        ):
-
-            return
-
-        self.batch_list.delete(
-            0,
-            tk.END
-        )
-
-        failed_set = set(
-            self.failed_files
-        )
-
-        for file in (
-            self.batch_files
-        ):
-
-            if (
-                file
-                in failed_set
-            ):
-
-                prefix = "✗"
-
-            else:
-
-                prefix = "○"
-
-            self.batch_list.insert(
-                tk.END,
-                (
-                    f"{prefix} "
-                    f"{Path(file).name}"
-                )
-            )
-
-
-    def remove_batch_files(
-        self
-    ):
-
-        selections = list(
-            self.batch_list
-            .curselection()
-        )
-
-        for index in reversed(
-            selections
-        ):
-
-            file = (
-                self.batch_files[
-                    index
-                ]
-            )
-
-            if (
-                file
-                in self.failed_files
-            ):
-
-                self.failed_files.remove(
-                    file
-                )
-
-            del self.batch_files[
-                index
-            ]
-
-        self.refresh_batch_list()
-
-
-    def clear_batch_files(
-        self
-    ):
-
-        self.batch_files.clear()
-
-        self.failed_files.clear()
-
-        self.refresh_batch_list()
-
-
     # =====================================================
-    # Merge list
+    # Treeview
     # =====================================================
 
-    def add_merge_files(
+    def clear_tree(
         self
     ):
 
-        files = (
-            filedialog
-            .askopenfilenames(
-                title="選擇 PDF",
-                filetypes=[
-                    (
-                        "PDF",
-                        "*.pdf"
-                    )
-                ]
-            )
-        )
+        for item in (
+            self.job_tree.get_children()
+        ):
 
-        self.add_paths_to_merge(
-            files
-        )
-
-
-    def add_paths_to_merge(
-        self,
-        paths
-    ):
-
-        added = 0
-
-        for item in paths:
-
-            path = Path(
+            self.job_tree.delete(
                 item
             )
 
-            if (
-                not path.is_file()
-                or
-                path.suffix.lower()
-                != ".pdf"
-            ):
 
-                continue
-
-            file_string = str(
-                path
-            )
-
-            if (
-                file_string
-                not in self.merge_files
-            ):
-
-                self.merge_files.append(
-                    file_string
-                )
-
-                added += 1
-
-        self.refresh_merge()
-
-        if added:
-
-            self.console_log(
-                (
-                    f"加入 "
-                    f"{added} 個 PDF"
-                ),
-                "SYSTEM"
-            )
-
-
-    def on_merge_drop(
-        self,
-        event
-    ):
-
-        paths = (
-            self.root.tk.splitlist(
-                event.data
-            )
-        )
-
-        self.add_paths_to_merge(
-            paths
-        )
-
-
-    def refresh_merge(
+    def refresh_job_tree(
         self
     ):
 
-        if not hasattr(
-            self,
-            "merge_list"
-        ):
+        self.clear_tree()
 
-            return
+        self.job_rows.clear()
 
-        if not (
-            self.merge_list
-            .winfo_exists()
-        ):
+        function = (
+            self.function_var.get()
+        )
 
-            return
-
-        self.merge_list.delete(
-            0,
-            tk.END
+        files = (
+            self.merge_files
+            if (
+                function
+                == "PDF 合併"
+            )
+            else self.batch_files
         )
 
         for index, file in enumerate(
-            self.merge_files,
+            files,
             start=1
         ):
 
-            self.merge_list.insert(
-                tk.END,
+            path = Path(
+                file
+            )
+
+            display_name = (
                 (
                     f"{index}. "
-                    f"{Path(file).name}"
+                    f"{path.name}"
+                )
+                if (
+                    function
+                    == "PDF 合併"
+                )
+                else path.name
+            )
+
+            item = (
+                self.job_tree.insert(
+                    "",
+                    tk.END,
+                    text=display_name,
+                    values=(
+                        "等待",
+                        "0%",
+                        "",
+                    )
                 )
             )
 
+            self.job_rows[
+                file
+            ] = item
 
-    def remove_merge_file(
+
+    def update_job(
+        self,
+        file,
+        status=None,
+        progress=None,
+        result=None,
+    ):
+
+        item = (
+            self.job_rows.get(
+                file
+            )
+        )
+
+        if not item:
+
+            return
+
+        if not self.job_tree.exists(
+            item
+        ):
+
+            return
+
+        values = list(
+            self.job_tree.item(
+                item,
+                "values"
+            )
+        )
+
+        while len(values) < 3:
+
+            values.append(
+                ""
+            )
+
+        if (
+            status
+            is not None
+        ):
+
+            values[0] = (
+                status
+            )
+
+        if (
+            progress
+            is not None
+        ):
+
+            values[1] = (
+                progress
+            )
+
+        if (
+            result
+            is not None
+        ):
+
+            values[2] = (
+                result
+            )
+
+        self.job_tree.item(
+            item,
+            values=values
+        )
+
+
+    # =====================================================
+    # Remove/Clear
+    # =====================================================
+
+    def remove_selected(
         self
     ):
 
+        if self.is_running():
+
+            return
+
         selection = (
-            self.merge_list
-            .curselection()
+            self.job_tree.selection()
         )
 
         if not selection:
 
             return
 
-        del self.merge_files[
-            selection[0]
-        ]
+        function = (
+            self.function_var.get()
+        )
 
-        self.refresh_merge()
+        target = (
+            self.merge_files
+            if (
+                function
+                == "PDF 合併"
+            )
+            else self.batch_files
+        )
+
+        item_to_file = {
+            item:
+                file
+            for file, item
+            in self.job_rows.items()
+        }
+
+        remove_files = []
+
+        for item in selection:
+
+            file = (
+                item_to_file.get(
+                    item
+                )
+            )
+
+            if file:
+
+                remove_files.append(
+                    file
+                )
+
+        for file in remove_files:
+
+            if file in target:
+
+                target.remove(
+                    file
+                )
+
+        self.refresh_job_tree()
 
 
-    def clear_merge_files(
+    def clear_files(
         self
     ):
+
+        if self.is_running():
+
+            return
+
+        self.batch_files.clear()
 
         self.merge_files.clear()
 
-        self.refresh_merge()
+        self.job_rows.clear()
 
-
-    def move_merge(
-        self,
-        direction
-    ):
-
-        selected = (
-            self.merge_list
-            .curselection()
-        )
-
-        if not selected:
-
-            return
-
-        index = (
-            selected[0]
-        )
-
-        new_index = (
-            index
-            + direction
-        )
-
-        if not (
-            0
-            <= new_index
-            < len(
-                self.merge_files
-            )
-        ):
-
-            return
-
-        (
-            self.merge_files[
-                index
-            ],
-            self.merge_files[
-                new_index
-            ]
-        ) = (
-            self.merge_files[
-                new_index
-            ],
-            self.merge_files[
-                index
-            ]
-        )
-
-        self.refresh_merge()
-
-        self.merge_list.selection_set(
-            new_index
-        )
+        self.clear_tree()
 
 
     # =====================================================
-    # Console
+    # Settings
     # =====================================================
 
-    def console_log(
-        self,
-        message,
-        level="INFO"
-    ):
-
-        timestamp = (
-            datetime.now().strftime(
-                "%H:%M:%S"
-            )
-        )
-
-        self.console.config(
-            state="normal"
-        )
-
-        self.console.insert(
-            tk.END,
-            (
-                f"[{timestamp}] "
-            ),
-            "SYSTEM"
-        )
-
-        self.console.insert(
-            tk.END,
-            f"{message}\n",
-            level
-        )
-
-        self.console.see(
-            tk.END
-        )
-
-        self.console.config(
-            state="disabled"
-        )
-
-
-    def clear_console(
+    def save_current_settings(
         self
     ):
 
-        self.console.config(
-            state="normal"
+        languages = []
+
+        if self.ocr_eng.get():
+
+            languages.append(
+                "eng"
+            )
+
+        if (
+            self.ocr_chi_tra.get()
+        ):
+
+            languages.append(
+                "chi_tra"
+            )
+
+        if self.ocr_ita.get():
+
+            languages.append(
+                "ita"
+            )
+
+        try:
+
+            custom_dpi = int(
+                self.custom_dpi_var.get()
+            )
+
+        except ValueError:
+
+            custom_dpi = 200
+
+        save_settings(
+            {
+                "compression_quality":
+                    self.quality_var.get(),
+
+                "custom_dpi":
+                    custom_dpi,
+
+                "ocr_languages":
+                    languages,
+
+                "ocr_rotate":
+                    bool(
+                        self.ocr_rotate.get()
+                    ),
+
+                "ocr_deskew":
+                    bool(
+                        self.ocr_deskew.get()
+                    ),
+
+                "ocr_sidecar":
+                    bool(
+                        self.ocr_sidecar.get()
+                    ),
+
+                "scan_optimize_level":
+                    int(
+                        self.scan_optimize_level.get()
+                    ),
+            }
         )
 
-        self.console.delete(
-            "1.0",
-            tk.END
-        )
 
-        self.console.config(
-            state="disabled"
-        )
+    # =====================================================
+    # Environment
+    # =====================================================
+
+    def run_environment_check(
+        self
+    ):
 
         self.console_log(
-            "執行過程已清除",
+            "開始檢查執行環境",
             "SYSTEM"
         )
 
+        try:
+
+            report = (
+                check_environment()
+            )
+
+            for item in report:
+
+                self.console_log(
+                    (
+                        (
+                            "✓ "
+                            if item[
+                                "ok"
+                            ]
+                            else "✗ "
+                        )
+                        +
+                        item[
+                            "name"
+                        ]
+                        +
+                        " ("
+                        +
+                        str(
+                            item[
+                                "detail"
+                            ]
+                        )
+                        +
+                        ")"
+                    ),
+                    (
+                        "SUCCESS"
+                        if item[
+                            "ok"
+                        ]
+                        else "WARNING"
+                    )
+                )
+
+        except Exception as error:
+
+            self.console_log(
+                (
+                    "環境檢查失敗："
+                    f"{error}"
+                ),
+                "ERROR"
+            )
+
 
     # =====================================================
-    # Processor callback
+    # Job options
     # =====================================================
 
-    def processor_callback(
-        self,
-        message,
-        level="INFO",
-        progress=None
+    def get_languages(
+        self
     ):
 
-        self.event_queue.put(
-            (
-                "processor_progress",
-                {
-                    "message":
-                        message,
+        languages = []
 
-                    "level":
-                        level,
+        if self.ocr_eng.get():
 
-                    "progress":
-                        progress,
-                }
+            languages.append(
+                "eng"
             )
-        )
 
+        if self.ocr_chi_tra.get():
 
-    # =====================================================
-    # Build job options
-    # =====================================================
+            languages.append(
+                "chi_tra"
+            )
+
+        if self.ocr_ita.get():
+
+            languages.append(
+                "ita"
+            )
+
+        if not languages:
+
+            raise ValueError(
+                "請至少選擇一種 OCR 語言。"
+            )
+
+        return languages
+
 
     def build_options(
         self
@@ -2210,45 +2191,34 @@ class ConverterGUI:
                 self.quality_var.get()
             )
 
-        elif (
-            function
-            == "PDF OCR"
-        ):
+            try:
 
-            languages = []
-
-            if self.ocr_eng.get():
-
-                languages.append(
-                    "eng"
+                options[
+                    "custom_dpi"
+                ] = int(
+                    self.custom_dpi_var
+                    .get()
                 )
 
-            if (
-                self.ocr_chi_tra.get()
-            ):
-
-                languages.append(
-                    "chi_tra"
-                )
-
-            if self.ocr_ita.get():
-
-                languages.append(
-                    "ita"
-                )
-
-            if not languages:
+            except ValueError:
 
                 raise ValueError(
-                    (
-                        "請至少選擇一種 "
-                        "OCR 語言。"
-                    )
+                    "自訂 DPI 必須是整數。"
                 )
+
+        elif (
+            function
+            in (
+                "PDF OCR",
+                "掃描文件最佳化",
+            )
+        ):
 
             options[
                 "languages"
-            ] = languages
+            ] = (
+                self.get_languages()
+            )
 
             options[
                 "rotate"
@@ -2262,11 +2232,25 @@ class ConverterGUI:
                 self.ocr_deskew.get()
             )
 
-            options[
-                "sidecar"
-            ] = bool(
-                self.ocr_sidecar.get()
-            )
+            if (
+                function
+                == "PDF OCR"
+            ):
+
+                options[
+                    "sidecar"
+                ] = bool(
+                    self.ocr_sidecar.get()
+                )
+
+            else:
+
+                options[
+                    "optimize_level"
+                ] = int(
+                    self.scan_optimize_level
+                    .get()
+                )
 
         elif (
             function
@@ -2279,7 +2263,9 @@ class ConverterGUI:
                 self.split_mode.get()
             )
 
-            pages = (
+            options[
+                "pages"
+            ] = (
                 self.split_pages
                 .get()
                 .strip()
@@ -2290,42 +2276,91 @@ class ConverterGUI:
                     "split_mode"
                 ]
                 == "selected"
-                and not pages
+                and
+                not options[
+                    "pages"
+                ]
             ):
 
                 raise ValueError(
-                    "請輸入拆分頁碼。"
+                    "請輸入頁碼。"
                 )
 
+        elif (
+            function
+            == "PDF 合併"
+        ):
+
             options[
-                "pages"
-            ] = pages
+                "output_name"
+            ] = (
+                self.merge_output_name
+                .get()
+                .strip()
+                or "merged.pdf"
+            )
 
         return options
 
 
     # =====================================================
-    # Start
+    # Run
     # =====================================================
+
+    def is_running(
+        self
+    ):
+
+        return bool(
+            self.worker
+            and
+            self.worker.is_alive()
+        )
+
 
     def start(
         self
     ):
 
-        if (
-            self.worker
-            and self.worker.is_alive()
-        ):
+        if self.is_running():
 
             return
-
-        self.stop_requested.clear()
-
-        self.failed_files.clear()
 
         function = (
             self.function_var.get()
         )
+
+        files = (
+            self.merge_files.copy()
+            if (
+                function
+                == "PDF 合併"
+            )
+            else self.batch_files.copy()
+        )
+
+        if not files:
+
+            messagebox.showerror(
+                "無法開始",
+                "請至少加入一個檔案。"
+            )
+
+            return
+
+        if (
+            function
+            == "PDF 合併"
+            and
+            len(files) < 2
+        ):
+
+            messagebox.showerror(
+                "無法開始",
+                "PDF 合併至少需要兩個 PDF。"
+            )
+
+            return
 
         try:
 
@@ -2333,55 +2368,10 @@ class ConverterGUI:
                 self.build_options()
             )
 
-            if (
-                function
-                == "PDF 合併"
-            ):
-
-                if (
-                    len(
-                        self.merge_files
-                    )
-                    < 2
-                ):
-
-                    raise ValueError(
-                        (
-                            "PDF 合併至少"
-                            "需要兩個 PDF。"
-                        )
-                    )
-
-                files = (
-                    self.merge_files.copy()
-                )
-
-                options[
-                    "output_name"
-                ] = (
-                    self.merge_output_name
-                    .get()
-                    .strip()
-                    or
-                    "merged.pdf"
-                )
-
-            else:
-
-                if not self.batch_files:
-
-                    raise ValueError(
-                        "請至少加入一個檔案。"
-                    )
-
-                files = (
-                    self.batch_files.copy()
-                )
-
         except Exception as error:
 
             messagebox.showerror(
-                "無法開始",
+                "設定錯誤",
                 str(error)
             )
 
@@ -2389,22 +2379,11 @@ class ConverterGUI:
 
         self.save_current_settings()
 
+        self.cancel_event.clear()
+
         self.reset_progress()
 
-        total = (
-            1
-            if function
-            == "PDF 合併"
-            else len(files)
-        )
-
-        self.batch_progress_text.set(
-            f"0 / {total}"
-        )
-
-        self.status_var.set(
-            "處理中..."
-        )
+        self.refresh_job_tree()
 
         self.function_combo.config(
             state="disabled"
@@ -2414,8 +2393,39 @@ class ConverterGUI:
             state="disabled"
         )
 
-        self.stop_button.config(
+        self.cancel_button.config(
             state="normal"
+        )
+
+        self.add_button.config(
+            state="disabled"
+        )
+
+        self.remove_button.config(
+            state="disabled"
+        )
+
+        self.clear_button.config(
+            state="disabled"
+        )
+
+        self.status_var.set(
+            "處理中..."
+        )
+
+        # Merge counts as one output job.
+
+        total_jobs = (
+            1
+            if (
+                function
+                == "PDF 合併"
+            )
+            else len(files)
+        )
+
+        self.batch_progress_text.set(
+            f"0 / {total_jobs}"
         )
 
         self.console_log(
@@ -2431,55 +2441,16 @@ class ConverterGUI:
             "SYSTEM"
         )
 
-        self.worker = (
-            threading.Thread(
-                target=self.run_batch,
-                args=(
-                    files,
-                    options,
-                ),
-                daemon=True
-            )
+        self.worker = threading.Thread(
+            target=self.run_batch,
+            args=(
+                files,
+                options,
+            ),
+            daemon=True
         )
 
         self.worker.start()
-
-
-    # =====================================================
-    # Stop
-    # =====================================================
-
-    def request_stop(
-        self
-    ):
-
-        if not (
-            self.worker
-            and self.worker.is_alive()
-        ):
-
-            return
-
-        self.stop_requested.set()
-
-        self.stop_button.config(
-            state="disabled"
-        )
-
-        self.status_var.set(
-            (
-                "停止已要求，"
-                "目前檔案完成後停止..."
-            )
-        )
-
-        self.console_log(
-            (
-                "已要求停止批次，"
-                "目前檔案完成後停止"
-            ),
-            "WARNING"
-        )
 
 
     # =====================================================
@@ -2489,21 +2460,23 @@ class ConverterGUI:
     def run_batch(
         self,
         files,
-        options
+        options,
     ):
 
         function = (
-            options["function"]
+            options[
+                "function"
+            ]
         )
 
         success_files = []
 
         failed_files = []
 
-        processed_count = 0
+        cancelled_files = []
 
         # =================================================
-        # Merge
+        # Merge special handling
         # =================================================
 
         if (
@@ -2517,36 +2490,50 @@ class ConverterGUI:
                     (
                         "file_start",
                         {
-                            "index": 1,
-                            "total": 1,
+                            "file":
+                                files[0],
+
                             "name":
                                 "PDF 合併",
+
+                            "index":
+                                1,
+
+                            "total":
+                                1,
                         }
                     )
                 )
 
-                result = merge_pdfs(
-                    files,
-                    options[
-                        "output_name"
-                    ],
-                    progress_callback=(
-                        self.processor_callback
-                    ),
+                result = (
+                    merge_pdfs(
+                        files,
+                        options[
+                            "output_name"
+                        ],
+                        progress_callback=(
+                            self.processor_callback
+                        ),
+                    )
                 )
 
                 success_files = (
                     files.copy()
                 )
 
-                processed_count = 1
-
                 self.event_queue.put(
                     (
                         "file_success",
                         {
-                            "index": 1,
-                            "total": 1,
+                            "file":
+                                files[0],
+
+                            "index":
+                                1,
+
+                            "total":
+                                1,
+
                             "result":
                                 result,
                         }
@@ -2559,14 +2546,19 @@ class ConverterGUI:
                     files.copy()
                 )
 
-                processed_count = 1
-
                 self.event_queue.put(
                     (
                         "file_error",
                         {
-                            "index": 1,
-                            "total": 1,
+                            "file":
+                                files[0],
+
+                            "index":
+                                1,
+
+                            "total":
+                                1,
+
                             "error":
                                 str(error),
                         }
@@ -2583,14 +2575,11 @@ class ConverterGUI:
                         "failed_files":
                             failed_files,
 
-                        "processed":
-                            processed_count,
+                        "cancelled_files":
+                            cancelled_files,
 
                         "total":
                             1,
-
-                        "stopped":
-                            False,
                     }
                 )
             )
@@ -2598,10 +2587,12 @@ class ConverterGUI:
             return
 
         # =================================================
-        # Standard batch
+        # Normal jobs
         # =================================================
 
-        total = len(files)
+        total = len(
+            files
+        )
 
         for index, file in enumerate(
             files,
@@ -2609,9 +2600,15 @@ class ConverterGUI:
         ):
 
             if (
-                self.stop_requested
+                self.cancel_event
                 .is_set()
             ):
+
+                cancelled_files.extend(
+                    files[
+                        index - 1:
+                    ]
+                )
 
                 break
 
@@ -2623,19 +2620,28 @@ class ConverterGUI:
                 (
                     "file_start",
                     {
+                        "file":
+                            file,
+
+                        "name":
+                            source.name,
+
                         "index":
                             index,
 
                         "total":
                             total,
-
-                        "name":
-                            source.name,
                     }
                 )
             )
 
             try:
+
+                result = None
+
+                # =========================================
+                # Compression
+                # =========================================
 
                 if (
                     function
@@ -2645,17 +2651,73 @@ class ConverterGUI:
                     result = (
                         compress_pdf(
                             source,
+
                             quality=(
                                 options[
                                     "quality"
                                 ]
                             ),
+
+                            custom_dpi=(
+                                options[
+                                    "custom_dpi"
+                                ]
+                            ),
+
                             delete_source=False,
+
                             progress_callback=(
                                 self.processor_callback
                             ),
+
+                            cancel_event=(
+                                self.cancel_event
+                            ),
                         )
                     )
+
+                    if (
+                        result
+                        and result.get(
+                            "cancelled"
+                        )
+                    ):
+
+                        cancelled_files.append(
+                            file
+                        )
+
+                        self.event_queue.put(
+                            (
+                                "file_cancelled",
+                                {
+                                    "file":
+                                        file,
+
+                                    "index":
+                                        index,
+
+                                    "total":
+                                        total,
+                                }
+                            )
+                        )
+
+                        remaining = (
+                            files[
+                                index:
+                            ]
+                        )
+
+                        cancelled_files.extend(
+                            remaining
+                        )
+
+                        break
+
+                # =========================================
+                # Markdown
+                # =========================================
 
                 elif (
                     function
@@ -2672,6 +2734,10 @@ class ConverterGUI:
                         )
                     )
 
+                # =========================================
+                # Image -> PDF
+                # =========================================
+
                 elif (
                     function
                     == "Image → PDF"
@@ -2687,37 +2753,9 @@ class ConverterGUI:
                         )
                     )
 
-                elif (
-                    function
-                    == "PDF OCR"
-                ):
-
-                    result = ocr_pdf(
-                        source,
-                        languages=(
-                            options[
-                                "languages"
-                            ]
-                        ),
-                        rotate_pages=(
-                            options[
-                                "rotate"
-                            ]
-                        ),
-                        deskew=(
-                            options[
-                                "deskew"
-                            ]
-                        ),
-                        create_sidecar=(
-                            options[
-                                "sidecar"
-                            ]
-                        ),
-                        progress_callback=(
-                            self.processor_callback
-                        ),
-                    )
+                # =========================================
+                # Split
+                # =========================================
 
                 elif (
                     function
@@ -2754,9 +2792,95 @@ class ConverterGUI:
                             )
                         )
 
+                # =========================================
+                # OCR
+                # =========================================
+
+                elif (
+                    function
+                    == "PDF OCR"
+                ):
+
+                    result = (
+                        ocr_pdf(
+                            source,
+
+                            languages=(
+                                options[
+                                    "languages"
+                                ]
+                            ),
+
+                            rotate_pages=(
+                                options[
+                                    "rotate"
+                                ]
+                            ),
+
+                            deskew=(
+                                options[
+                                    "deskew"
+                                ]
+                            ),
+
+                            create_sidecar=(
+                                options[
+                                    "sidecar"
+                                ]
+                            ),
+
+                            progress_callback=(
+                                self.processor_callback
+                            ),
+                        )
+                    )
+
+                # =========================================
+                # Scan Optimize
+                # =========================================
+
+                elif (
+                    function
+                    == "掃描文件最佳化"
+                ):
+
+                    result = (
+                        optimize_scanned_pdf(
+                            source,
+
+                            languages=(
+                                options[
+                                    "languages"
+                                ]
+                            ),
+
+                            rotate_pages=(
+                                options[
+                                    "rotate"
+                                ]
+                            ),
+
+                            deskew=(
+                                options[
+                                    "deskew"
+                                ]
+                            ),
+
+                            optimize_level=(
+                                options[
+                                    "optimize_level"
+                                ]
+                            ),
+
+                            progress_callback=(
+                                self.processor_callback
+                            ),
+                        )
+                    )
+
                 else:
 
-                    raise ValueError(
+                    raise RuntimeError(
                         (
                             "未知功能："
                             f"{function}"
@@ -2764,15 +2888,16 @@ class ConverterGUI:
                     )
 
                 success_files.append(
-                    str(source)
+                    file
                 )
-
-                processed_count += 1
 
                 self.event_queue.put(
                     (
                         "file_success",
                         {
+                            "file":
+                                file,
+
                             "index":
                                 index,
 
@@ -2781,9 +2906,6 @@ class ConverterGUI:
 
                             "result":
                                 result,
-
-                            "file":
-                                str(source),
                         }
                     )
                 )
@@ -2791,15 +2913,16 @@ class ConverterGUI:
             except Exception as error:
 
                 failed_files.append(
-                    str(source)
+                    file
                 )
-
-                processed_count += 1
 
                 self.event_queue.put(
                     (
                         "file_error",
                         {
+                            "file":
+                                file,
+
                             "index":
                                 index,
 
@@ -2808,17 +2931,9 @@ class ConverterGUI:
 
                             "error":
                                 str(error),
-
-                            "file":
-                                str(source),
                         }
                     )
                 )
-
-        stopped = (
-            self.stop_requested
-            .is_set()
-        )
 
         self.event_queue.put(
             (
@@ -2830,21 +2945,77 @@ class ConverterGUI:
                     "failed_files":
                         failed_files,
 
-                    "processed":
-                        processed_count,
+                    "cancelled_files":
+                        cancelled_files,
 
                     "total":
                         total,
-
-                    "stopped":
-                        stopped,
                 }
             )
         )
 
 
     # =====================================================
-    # Queue
+    # Processor callback
+    # =====================================================
+
+    def processor_callback(
+        self,
+        message,
+        level="INFO",
+        progress=None,
+    ):
+
+        self.event_queue.put(
+            (
+                "processor_progress",
+                {
+                    "message":
+                        message,
+
+                    "level":
+                        level,
+
+                    "progress":
+                        progress,
+                }
+            )
+        )
+
+
+    # =====================================================
+    # Cancel
+    # =====================================================
+
+    def cancel_current_job(
+        self
+    ):
+
+        if not self.is_running():
+
+            return
+
+        self.cancel_event.set()
+
+        self.cancel_button.config(
+            state="disabled"
+        )
+
+        self.status_var.set(
+            "正在取消..."
+        )
+
+        self.console_log(
+            (
+                "取消要求已送出，"
+                "正在停止目前工作..."
+            ),
+            "WARNING"
+        )
+
+
+    # =====================================================
+    # Queue processing
     # =====================================================
 
     def check_event_queue(
@@ -2874,7 +3045,7 @@ class ConverterGUI:
                     == "processor_progress"
                 ):
 
-                    self.handle_processor_progress(
+                    self.handle_progress(
                         data
                     )
 
@@ -2883,7 +3054,7 @@ class ConverterGUI:
                     == "file_success"
                 ):
 
-                    self.handle_file_success(
+                    self.handle_success(
                         data
                     )
 
@@ -2892,7 +3063,16 @@ class ConverterGUI:
                     == "file_error"
                 ):
 
-                    self.handle_file_error(
+                    self.handle_error(
+                        data
+                    )
+
+                elif (
+                    event
+                    == "file_cancelled"
+                ):
+
+                    self.handle_cancelled(
                         data
                     )
 
@@ -2925,7 +3105,15 @@ class ConverterGUI:
     ):
 
         self.current_file_var.set(
-            data["name"]
+            data[
+                "name"
+            ]
+        )
+
+        self.current_job_file = (
+            data[
+                "file"
+            ]
         )
 
         self.file_progress.stop()
@@ -2934,16 +3122,18 @@ class ConverterGUI:
             mode="indeterminate"
         )
 
-        self.file_progress[
-            "value"
-        ] = 0
-
         self.file_progress.start(
             10
         )
 
         self.file_progress_text.set(
             "處理中"
+        )
+
+        self.update_job(
+            data["file"],
+            status="處理中",
+            progress="..."
         )
 
         self.console_log(
@@ -2956,21 +3146,30 @@ class ConverterGUI:
         )
 
 
-    def handle_processor_progress(
+    def handle_progress(
         self,
         data
     ):
 
         self.console_log(
-            data["message"],
-            data["level"]
+            data[
+                "message"
+            ],
+            data[
+                "level"
+            ]
         )
 
         progress = (
-            data["progress"]
+            data[
+                "progress"
+            ]
         )
 
-        if progress is None:
+        if (
+            progress
+            is None
+        ):
 
             if (
                 str(
@@ -3007,7 +3206,9 @@ class ConverterGUI:
             0.0,
             min(
                 100.0,
-                float(progress)
+                float(
+                    progress
+                )
             )
         )
 
@@ -3015,12 +3216,97 @@ class ConverterGUI:
             "value"
         ] = value
 
-        self.file_progress_text.set(
+        text = (
             f"{value:.0f}%"
         )
 
+        self.file_progress_text.set(
+            text
+        )
 
-    def handle_file_success(
+        current_file = getattr(
+            self,
+            "current_job_file",
+            None
+        )
+
+        if current_file:
+
+            self.update_job(
+                current_file,
+                status="處理中",
+                progress=text
+            )
+
+
+    def result_to_text(
+        self,
+        result
+    ):
+
+        if isinstance(
+            result,
+            dict
+        ):
+
+            if (
+                result.get(
+                    "compressed"
+                )
+            ):
+
+                reduction = (
+                    result.get(
+                        "reduction"
+                    )
+                )
+
+                output_size = (
+                    result.get(
+                        "output_size"
+                    )
+                )
+
+                if (
+                    reduction
+                    is not None
+                    and
+                    output_size
+                    is not None
+                ):
+
+                    return (
+                        f"-{reduction:.1f}% | "
+                        f"{format_size(output_size)}"
+                    )
+
+            if (
+                result.get(
+                    "pdf"
+                )
+            ):
+
+                return (
+                    Path(
+                        result[
+                            "pdf"
+                        ]
+                    ).name
+                )
+
+        if isinstance(
+            result,
+            Path
+        ):
+
+            return (
+                result.name
+            )
+
+        return "完成"
+
+
+    def handle_success(
         self,
         data
     ):
@@ -3039,9 +3325,28 @@ class ConverterGUI:
             "100%"
         )
 
+        result_text = (
+            self.result_to_text(
+                data[
+                    "result"
+                ]
+            )
+        )
+
+        self.update_job(
+            data["file"],
+            status="完成",
+            progress="100%",
+            result=result_text
+        )
+
         overall = (
-            data["index"]
-            / data["total"]
+            data[
+                "index"
+            ]
+            / data[
+                "total"
+            ]
             * 100
         )
 
@@ -3057,12 +3362,12 @@ class ConverterGUI:
         )
 
         self.console_log(
-            "✓ 檔案處理完成",
+            "✓ 處理完成",
             "SUCCESS"
         )
 
 
-    def handle_file_error(
+    def handle_error(
         self,
         data
     ):
@@ -3077,9 +3382,24 @@ class ConverterGUI:
             "失敗"
         )
 
+        self.update_job(
+            data["file"],
+            status="失敗",
+            progress="-",
+            result=(
+                data[
+                    "error"
+                ][:80]
+            )
+        )
+
         overall = (
-            data["index"]
-            / data["total"]
+            data[
+                "index"
+            ]
+            / data[
+                "total"
+            ]
             * 100
         )
 
@@ -3096,10 +3416,38 @@ class ConverterGUI:
 
         self.console_log(
             (
-                "✗ 處理失敗："
+                "✗ "
                 f"{data['error']}"
             ),
             "ERROR"
+        )
+
+
+    def handle_cancelled(
+        self,
+        data
+    ):
+
+        self.file_progress.stop()
+
+        self.file_progress.config(
+            mode="determinate"
+        )
+
+        self.file_progress_text.set(
+            "已取消"
+        )
+
+        self.update_job(
+            data["file"],
+            status="已取消",
+            progress="-",
+            result=""
+        )
+
+        self.console_log(
+            "目前工作已取消",
+            "WARNING"
         )
 
 
@@ -3114,10 +3462,6 @@ class ConverterGUI:
 
         self.file_progress.stop()
 
-        self.file_progress.config(
-            mode="determinate"
-        )
-
         self.function_combo.config(
             state="readonly"
         )
@@ -3126,8 +3470,20 @@ class ConverterGUI:
             state="normal"
         )
 
-        self.stop_button.config(
+        self.cancel_button.config(
             state="disabled"
+        )
+
+        self.add_button.config(
+            state="normal"
+        )
+
+        self.remove_button.config(
+            state="normal"
+        )
+
+        self.clear_button.config(
+            state="normal"
         )
 
         self.current_file_var.set(
@@ -3135,43 +3491,57 @@ class ConverterGUI:
         )
 
         success_files = (
-            data["success_files"]
+            data[
+                "success_files"
+            ]
         )
 
         failed_files = (
-            data["failed_files"]
+            data[
+                "failed_files"
+            ]
         )
 
-        stopped = (
-            data["stopped"]
+        cancelled_files = (
+            data[
+                "cancelled_files"
+            ]
         )
+
+        success_count = len(
+            success_files
+        )
+
+        failed_count = len(
+            failed_files
+        )
+
+        cancelled_count = len(
+            set(
+                cancelled_files
+            )
+        )
+
+        # =================================================
+        # Keep failed/cancelled jobs
+        # Remove successful jobs
+        # =================================================
 
         function = (
             self.function_var.get()
         )
-
-        # =================================================
-        # Merge
-        # =================================================
 
         if (
             function
             == "PDF 合併"
         ):
 
-            if not failed_files:
+            if success_count:
 
                 self.merge_files.clear()
 
-            self.refresh_merge()
-
-        # =================================================
-        # Standard batch
-        # =================================================
-
         else:
 
-            # Success items removed
             success_set = set(
                 success_files
             )
@@ -3187,99 +3557,53 @@ class ConverterGUI:
                 not in success_set
             ]
 
-            # Failed items remain marked
-            self.failed_files = [
+        # Do NOT refresh Treeview here.
+        # Keep final result rows visible until user
+        # starts a new run / manually clears them.
 
-                file
-
-                for file
-                in failed_files
-
-                if file
-                in self.batch_files
-            ]
-
-            self.refresh_batch_list()
-
-        # =================================================
-        # Status
-        # =================================================
-
-        success_count = len(
-            success_files
-        )
-
-        failed_count = len(
-            failed_files
-        )
-
-        if stopped:
+        if cancelled_count:
 
             self.status_var.set(
                 (
-                    "已停止："
-                    f"{success_count} 成功，"
-                    f"{failed_count} 失敗"
+                    "已取消 | "
+                    f"成功 {success_count} | "
+                    f"失敗 {failed_count}"
                 )
-            )
-
-            self.console_log(
-                "批次已停止",
-                "WARNING"
             )
 
         else:
 
             self.status_var.set(
                 (
-                    "完成："
+                    f"完成："
                     f"{success_count} 成功，"
                     f"{failed_count} 失敗"
                 )
             )
 
-            level = (
+        self.console_log(
+            (
+                "工作結束 | "
+                f"成功 {success_count} | "
+                f"失敗 {failed_count} | "
+                f"取消 {cancelled_count}"
+            ),
+            (
                 "SUCCESS"
-                if failed_count == 0
+                if (
+                    failed_count == 0
+                    and
+                    cancelled_count == 0
+                )
                 else "WARNING"
             )
+        )
 
-            self.console_log(
-                (
-                    "批次處理完成 | "
-                    f"成功 {success_count} | "
-                    f"失敗 {failed_count}"
-                ),
-                level
-            )
-
-        if (
-            failed_count > 0
-            and function
-            != "PDF 合併"
-        ):
-
-            self.console_log(
-                (
-                    "失敗項目已保留在清單，"
-                    "可直接重新執行"
-                ),
-                "WARNING"
-            )
-
-        elif (
-            not stopped
-            and failed_count == 0
-        ):
-
-            self.console_log(
-                "已自動清除成功項目",
-                "SYSTEM"
-            )
+        self.cancel_event.clear()
 
 
     # =====================================================
-    # Reset progress
+    # Reset
     # =====================================================
 
     def reset_progress(
@@ -3314,7 +3638,66 @@ class ConverterGUI:
 
 
     # =====================================================
-    # Output folder
+    # Console
+    # =====================================================
+
+    def console_log(
+        self,
+        message,
+        level="INFO"
+    ):
+
+        timestamp = (
+            datetime.now().strftime(
+                "%H:%M:%S"
+            )
+        )
+
+        self.console.config(
+            state="normal"
+        )
+
+        self.console.insert(
+            tk.END,
+            f"[{timestamp}] ",
+            "SYSTEM"
+        )
+
+        self.console.insert(
+            tk.END,
+            f"{message}\n",
+            level
+        )
+
+        self.console.see(
+            tk.END
+        )
+
+        self.console.config(
+            state="disabled"
+        )
+
+
+    def clear_console(
+        self
+    ):
+
+        self.console.config(
+            state="normal"
+        )
+
+        self.console.delete(
+            "1.0",
+            tk.END
+        )
+
+        self.console.config(
+            state="disabled"
+        )
+
+
+    # =====================================================
+    # Output
     # =====================================================
 
     def open_output(
@@ -3340,33 +3723,32 @@ class ConverterGUI:
 
             "PDF OCR":
                 OCR_OUTPUT,
+
+            "掃描文件最佳化":
+                SCAN_OUTPUT,
         }
 
-        folder = folders.get(
-            self.function_var.get()
+        folder = (
+            folders.get(
+                self.function_var.get()
+            )
         )
 
-        if not folder:
+        if folder:
 
-            return
+            try:
 
-        try:
+                os.startfile(
+                    str(folder)
+                )
 
-            os.startfile(
-                str(folder)
-            )
+            except Exception as error:
 
-        except Exception as error:
+                messagebox.showerror(
+                    "錯誤",
+                    str(error)
+                )
 
-            messagebox.showerror(
-                "無法開啟資料夾",
-                str(error)
-            )
-
-
-    # =====================================================
-    # Log
-    # =====================================================
 
     def open_log(
         self
@@ -3397,7 +3779,7 @@ class ConverterGUI:
         except Exception as error:
 
             messagebox.showerror(
-                "無法開啟 Log",
+                "錯誤",
                 str(error)
             )
 
@@ -3410,24 +3792,48 @@ class ConverterGUI:
         self
     ):
 
-        if (
-            self.worker
-            and self.worker.is_alive()
-        ):
+        if self.is_running():
 
-            result = (
+            answer = (
                 messagebox.askyesno(
-                    "工作仍在執行",
+                    "工作執行中",
                     (
                         "目前仍有工作正在執行。\n"
-                        "確定要關閉程式嗎？"
+                        "要取消工作並關閉程式嗎？"
                     )
                 )
             )
 
-            if not result:
+            if not answer:
 
                 return
+
+            self.cancel_event.set()
+
+            self.console_log(
+                (
+                    "正在取消工作，"
+                    "請稍候..."
+                ),
+                "WARNING"
+            )
+
+            # Give worker a short opportunity
+            # to terminate external process.
+
+            self.root.after(
+                500,
+                self.force_close
+            )
+
+            return
+
+        self.force_close()
+
+
+    def force_close(
+        self
+    ):
 
         self.save_current_settings()
 

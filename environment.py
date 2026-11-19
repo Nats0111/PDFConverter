@@ -8,14 +8,20 @@ from config import (
 
 
 REQUIRED_OCR_LANGUAGES = {
-    "eng": "English",
-    "chi_tra": "繁體中文",
-    "ita": "Italiano",
+
+    "eng":
+        "English",
+
+    "chi_tra":
+        "繁體中文",
+
+    "ita":
+        "Italiano",
 }
 
 
 # =========================================================
-# Python module check
+# Python module
 # =========================================================
 
 def module_available(
@@ -36,18 +42,52 @@ def module_available(
 
 
 # =========================================================
-# External command check
+# Executable
 # =========================================================
 
-def command_available(
+def command_path(
     command
 ):
 
-    return (
-        shutil.which(
-            command
+    return shutil.which(
+        command
+    )
+
+
+# =========================================================
+# Hidden Windows subprocess
+# =========================================================
+
+def hidden_subprocess_options():
+
+    creation_flags = 0
+
+    startup_info = None
+
+    if hasattr(
+        subprocess,
+        "CREATE_NO_WINDOW"
+    ):
+
+        creation_flags = (
+            subprocess.CREATE_NO_WINDOW
         )
-        is not None
+
+        startup_info = (
+            subprocess.STARTUPINFO()
+        )
+
+        startup_info.dwFlags |= (
+            subprocess.STARTF_USESHOWWINDOW
+        )
+
+        startup_info.wShowWindow = (
+            subprocess.SW_HIDE
+        )
+
+    return (
+        creation_flags,
+        startup_info,
     )
 
 
@@ -57,17 +97,27 @@ def command_available(
 
 def get_tesseract_languages():
 
-    if not command_available(
-        TESSERACT
-    ):
+    executable = (
+        command_path(
+            TESSERACT
+        )
+    )
+
+    if not executable:
 
         return set()
+
+    (
+        creation_flags,
+        startup_info,
+    ) = hidden_subprocess_options()
 
     try:
 
         result = subprocess.run(
+
             [
-                TESSERACT,
+                executable,
                 "--list-langs",
             ],
 
@@ -80,6 +130,14 @@ def get_tesseract_languages():
             errors="replace",
 
             timeout=15,
+
+            creationflags=(
+                creation_flags
+            ),
+
+            startupinfo=(
+                startup_info
+            ),
         )
 
         output = (
@@ -94,14 +152,16 @@ def get_tesseract_languages():
             output.splitlines()
         ):
 
-            item = line.strip()
+            value = (
+                line.strip()
+            )
 
-            if not item:
+            if not value:
 
                 continue
 
             if (
-                item
+                value
                 .lower()
                 .startswith(
                     "list of available languages"
@@ -111,21 +171,18 @@ def get_tesseract_languages():
                 continue
 
             languages.add(
-                item
+                value
             )
 
         return languages
 
-    except (
-        OSError,
-        subprocess.SubprocessError,
-    ):
+    except Exception:
 
         return set()
 
 
 # =========================================================
-# Environment report
+# Main environment check
 # =========================================================
 
 def check_environment():
@@ -133,7 +190,7 @@ def check_environment():
     report = []
 
     # =====================================================
-    # Python Packages
+    # Python packages
     # =====================================================
 
     packages = {
@@ -185,8 +242,8 @@ def check_environment():
     # Ghostscript
     # =====================================================
 
-    ghostscript_ok = (
-        command_available(
+    gs = (
+        command_path(
             GHOSTSCRIPT
         )
     )
@@ -197,16 +254,13 @@ def check_environment():
                 "Ghostscript",
 
             "ok":
-                ghostscript_ok,
+                bool(gs),
 
             "detail":
                 (
-                    "可用"
-                    if ghostscript_ok
-                    else (
-                        "PATH 中找不到 "
-                        f"{GHOSTSCRIPT}"
-                    )
+                    gs
+                    if gs
+                    else "未偵測到"
                 ),
         }
     )
@@ -215,8 +269,8 @@ def check_environment():
     # Tesseract
     # =====================================================
 
-    tesseract_ok = (
-        command_available(
+    tess = (
+        command_path(
             TESSERACT
         )
     )
@@ -227,22 +281,19 @@ def check_environment():
                 "Tesseract",
 
             "ok":
-                tesseract_ok,
+                bool(tess),
 
             "detail":
                 (
-                    "可用"
-                    if tesseract_ok
-                    else (
-                        "PATH 中找不到 "
-                        f"{TESSERACT}"
-                    )
+                    tess
+                    if tess
+                    else "未偵測到"
                 ),
         }
     )
 
     # =====================================================
-    # OCR Languages
+    # OCR languages
     # =====================================================
 
     languages = (
@@ -250,8 +301,7 @@ def check_environment():
     )
 
     for code, name in (
-        REQUIRED_OCR_LANGUAGES
-        .items()
+        REQUIRED_OCR_LANGUAGES.items()
     ):
 
         available = (
@@ -261,9 +311,7 @@ def check_environment():
         report.append(
             {
                 "name":
-                    (
-                        f"OCR {name}"
-                    ),
+                    f"OCR {name}",
 
                 "ok":
                     available,
@@ -273,8 +321,7 @@ def check_environment():
                         code
                         if available
                         else (
-                            f"{code} "
-                            "未安裝"
+                            f"{code} 未安裝"
                         )
                     ),
             }

@@ -8535,6 +8535,10 @@
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\processors\\ocr_pdf.py',
    'PYMODULE'),
+  ('processors.scan_optimize',
+   'C:\\Users\\Ray '
+   'Lee\\OneDrive\\Desktop\\PDFConverter\\processors\\scan_optimize.py',
+   'PYMODULE'),
   ('processors.split_pdf',
    'C:\\Users\\Ray '
    'Lee\\OneDrive\\Desktop\\PDFConverter\\processors\\split_pdf.py',

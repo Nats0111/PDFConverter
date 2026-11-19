@@ -80,44 +80,23 @@ datas += copy_metadata(
 hiddenimports = []
 
 
-# =========================================================
-# Magika
-# =========================================================
-
-hiddenimports += (
-    collect_submodules(
-        "magika"
-    )
+hiddenimports += collect_submodules(
+    "magika"
 )
 
 
-# =========================================================
-# MarkItDown
-# =========================================================
-
-hiddenimports += (
-    collect_submodules(
-        "markitdown"
-    )
+hiddenimports += collect_submodules(
+    "markitdown"
 )
 
 
-# =========================================================
-# OCRmyPDF
-# =========================================================
-
-hiddenimports += (
-    collect_submodules(
-        "ocrmypdf"
-    )
+hiddenimports += collect_submodules(
+    "ocrmypdf"
 )
 
-
-# =========================================================
-# Explicit OCRmyPDF plugin package
-# =========================================================
 
 hiddenimports += [
+
     "ocrmypdf.builtin_plugins",
 ]
 
@@ -126,16 +105,17 @@ hiddenimports += [
 # Icon
 # =========================================================
 
-icon_path = (
+icon_file = (
     project_dir
     / "assets"
     / "app.ico"
 )
 
-if icon_path.exists():
+
+if icon_file.exists():
 
     icon_value = str(
-        icon_path
+        icon_file
     )
 
 else:
@@ -144,13 +124,14 @@ else:
 
 
 # =========================================================
-# Version information
+# Version
 # =========================================================
 
 version_file = (
     project_dir
     / "version_info.txt"
 )
+
 
 if version_file.exists():
 
@@ -263,7 +244,7 @@ exe = EXE(
 # =========================================================
 # COLLECT
 #
-# V3.5 正式使用 onedir。
+# V4 remains ONEDIR.
 # =========================================================
 
 coll = COLLECT(

@@ -6,29 +6,29 @@ from PyInstaller.utils.hooks import (
 
 
 # =========================================================
-# OCRmyPDF data files
+# Data
 # =========================================================
 
-datas = collect_data_files(
-    "ocrmypdf"
+datas = (
+    collect_data_files(
+        "ocrmypdf"
+    )
 )
 
 
 # =========================================================
-# Package metadata
+# Metadata
 # =========================================================
 
-datas += copy_metadata(
-    "ocrmypdf"
+datas += (
+    copy_metadata(
+        "ocrmypdf"
+    )
 )
 
 
 # =========================================================
-# OCRmyPDF submodules
-#
-# OCRmyPDF 使用 plugin architecture，
-# PyInstaller 不一定能從靜態 import
-# 自動找到所有 builtin plugins。
+# Dynamic modules / plugins
 # =========================================================
 
 hiddenimports = (
@@ -36,3 +36,8 @@ hiddenimports = (
         "ocrmypdf"
     )
 )
+
+
+hiddenimports += [
+    "ocrmypdf.builtin_plugins",
+]
