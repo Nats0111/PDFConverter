@@ -1,32 +1,66 @@
-Local Document Converter
-A local document processing tool I built with Python and Tkinter.
+# Local Document Converter
 
-The goal of this project is to combine the document tools I frequently use into one simple Windows application without relying on online converters.
+A local document processing tool built with Python and Tkinter.
 
-What It Can Do
-Compress PDFs with different quality levels
-Handle large PDF files
-OCR scanned PDFs
-Optimize scanned documents
-Merge and split PDFs
-Convert images to PDF
-Convert documents to Markdown
-Process multiple files in batches
-Drag and drop files directly into the application
-Show real-time processing progress
-Cancel running PDF compression jobs
-OCR Languages
-English
-Traditional Chinese
-Italian
-Tech Stack
-Python
-Tkinter
-Ghostscript
-Tesseract OCR
-OCRmyPDF
-MarkItDown
-pypdf
-PyInstaller
-Platform
-Built for Windows.
+This project combines common PDF and document utilities into a simple Windows desktop application. Files are processed locally without relying on online conversion services.
+
+## Features
+
+- 📦 **PDF Compression**
+  - Lossless optimization
+  - 96 / 150 / 300 DPI compression
+  - Custom DPI
+  - Large PDF support
+  - Real-time progress
+  - Cancel running compression jobs
+
+- 🔍 **PDF OCR**
+  - English
+  - Traditional Chinese
+  - Italian
+  - Automatic page rotation
+  - Deskew
+  - Optional text output
+
+- 📄 **Scanned Document Optimization**
+  - OCR scanned documents
+  - Multiple optimization levels
+  - Automatic rotation and deskew
+
+- 🔗 **PDF Merge**
+  - Combine multiple PDFs into one file
+
+- ✂️ **PDF Split**
+  - Extract selected pages
+  - Split every page into separate PDFs
+
+- 🖼️ **Image to PDF**
+  - Convert JPG, PNG, WEBP, BMP, and TIFF images to PDF
+
+- 📝 **Document to Markdown**
+  - Convert supported documents into Markdown
+
+- 📚 **Batch Processing**
+  - Process multiple files
+  - Drag and drop support
+  - Per-file progress and status
+
+## Built With
+
+- Python
+- Tkinter
+- Ghostscript
+- Tesseract OCR
+- OCRmyPDF
+- MarkItDown
+- pypdf
+- Pillow
+- PyInstaller
+
+## Platform
+
+Windows
+
+## Version
+
+**4.0.0**
