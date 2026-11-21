@@ -103,15 +103,7 @@ class ConverterGUI:
             f"{APP_NAME} V{APP_VERSION}"
         )
 
-        self.root.geometry(
-            "1000x900"
-        )
-
-        self.root.minsize(
-            860,
-            720
-        )
-
+        self.configure_window()
         # =================================================
         # Worker
         # =================================================
@@ -355,15 +347,7 @@ class ConverterGUI:
         # Main
         # =================================================
 
-        self.main = ttk.Frame(
-            root,
-            padding=16
-        )
-
-        self.main.pack(
-            fill="both",
-            expand=True
-        )
+        self.build_scrollable_root()
 
         self.build_ui()
 
@@ -382,7 +366,372 @@ class ConverterGUI:
             self.startup_tasks
         )
 
+    def configure_window(
+      self      
+    ):
+        self.root.update_idletasks()
 
+        screen_width = (
+            self.root.winfo_screenwidth()
+        )
+
+        screen_height = (
+            self.root.winfo_screenheight()
+        )
+
+        target_width = min(
+            1100,
+            int(
+                screen_width*0.88
+            )
+        )
+        target_height = min(
+            900,
+            int(
+                screen_height*0.80
+            )
+        )
+        target_width = max(
+            700,
+            target_width
+        )
+
+        target_height = max(
+            520,
+            target_height
+        )
+
+        self.root.minsize(
+            700,
+            520
+        )
+        x = max(
+            0,
+            (
+                screen_width
+                - target_width
+            )
+            // 2
+        )
+        y = max(
+            0,
+            (
+                screen_height
+                - target_height
+            )
+            // 2
+        )
+        self.root.geometry(
+            (
+                f"{target_width}"
+                f"x{target_height}"
+                f"+{x}+{y}"
+            )
+        )
+    # =====================================================
+    # Scrollable Root
+    # =====================================================
+
+    def build_scrollable_root(
+        self
+    ):
+
+        # =================================================
+        # Outer container
+        # =================================================
+
+        self.scroll_container = (
+            ttk.Frame(
+                self.root
+            )
+        )
+
+        self.scroll_container.pack(
+            fill="both",
+            expand=True
+        )
+
+        # =================================================
+        # Canvas
+        # =================================================
+
+        self.scroll_canvas = (
+            tk.Canvas(
+                self.scroll_container,
+                highlightthickness=0,
+                borderwidth=0
+            )
+        )
+
+        self.scroll_canvas.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        # =================================================
+        # Scrollbar
+        # =================================================
+
+        self.main_scrollbar = (
+            ttk.Scrollbar(
+                self.scroll_container,
+                orient="vertical",
+                command=(
+                    self.scroll_canvas
+                    .yview
+                )
+            )
+        )
+
+        self.main_scrollbar.pack(
+            side="right",
+            fill="y"
+        )
+
+        self.scroll_canvas.configure(
+            yscrollcommand=(
+                self.main_scrollbar
+                .set
+            )
+        )
+
+        # =================================================
+        # Main content frame
+        # =================================================
+
+        self.main = (
+            ttk.Frame(
+                self.scroll_canvas,
+                padding=16
+            )
+        )
+
+        self.main_window = (
+            self.scroll_canvas
+            .create_window(
+                (0, 0),
+                window=self.main,
+                anchor="nw"
+            )
+        )
+
+        # =================================================
+        # Resize events
+        # =================================================
+
+        self.main.bind(
+            "<Configure>",
+            self.on_main_configure
+        )
+
+        self.scroll_canvas.bind(
+            "<Configure>",
+            self.on_canvas_configure
+        )
+
+        # =================================================
+        # Mouse wheel
+        # =================================================
+
+        self.scroll_canvas.bind(
+            "<Enter>",
+            self.enable_mousewheel
+        )
+
+        self.scroll_canvas.bind(
+            "<Leave>",
+            self.disable_mousewheel
+        )
+    # =====================================================
+    # Update scrollable area
+    # =====================================================
+
+    def on_main_configure(
+        self,
+        event=None
+    ):
+
+        self.scroll_canvas.configure(
+            scrollregion=(
+                self.scroll_canvas
+                .bbox(
+                    "all"
+                )
+            )
+        )
+
+        self.root.after_idle(
+            self.update_scrollbar_state
+        )
+
+
+    # =====================================================
+    # Responsive content width
+    # =====================================================
+
+    def on_canvas_configure(
+        self,
+        event
+    ):
+
+        self.scroll_canvas.itemconfigure(
+            self.main_window,
+            width=event.width
+        )
+
+        self.root.after_idle(
+            self.update_scrollbar_state
+        )
+    # =====================================================
+    # Auto Scrollbar
+    #
+    # Large screen:
+    #   Everything fits -> hide scrollbar
+    #
+    # Small screen:
+    #   Content overflow -> show scrollbar
+    # =====================================================
+
+    def update_scrollbar_state(
+        self
+    ):
+
+        try:
+
+            self.root.update_idletasks()
+
+            # Canvas visible height
+            canvas_height = (
+                self.scroll_canvas
+                .winfo_height()
+            )
+
+            # Required content height
+            content_height = (
+                self.main
+                .winfo_reqheight()
+            )
+
+            needs_scroll = (
+                content_height
+                > canvas_height
+            )
+
+            if needs_scroll:
+
+                if not (
+                    self.main_scrollbar
+                    .winfo_ismapped()
+                ):
+
+                    self.main_scrollbar.pack(
+                        side="right",
+                        fill="y"
+                    )
+
+            else:
+
+                if (
+                    self.main_scrollbar
+                    .winfo_ismapped()
+                ):
+
+                    self.main_scrollbar.pack_forget()
+
+                # 回到最上面
+                self.scroll_canvas.yview_moveto(
+                    0
+                )
+
+        except tk.TclError:
+
+            pass
+
+    # =====================================================
+    # Mouse Wheel
+    #
+    # Only scroll when content exceeds visible area.
+    # =====================================================
+
+    def on_mousewheel(
+        self,
+        event
+    ):
+
+        try:
+
+            first, last = (
+                self.scroll_canvas
+                .yview()
+            )
+
+            # =============================================
+            # Everything is already visible
+            #
+            # yview == (0.0, 1.0)
+            # -> lock page
+            # =============================================
+
+            if (
+                first <= 0.0
+                and
+                last >= 1.0
+            ):
+
+                return
+
+            # =============================================
+            # Windows mouse wheel
+            # =============================================
+
+            delta = int(
+                -1
+                * (
+                    event.delta
+                    / 120
+                )
+            )
+
+            if delta == 0:
+
+                return
+
+            self.scroll_canvas.yview_scroll(
+                delta,
+                "units"
+            )
+
+        except tk.TclError:
+
+            pass
+    # =====================================================
+    # Enable Mouse Wheel
+    # =====================================================
+
+    def enable_mousewheel(
+        self,
+        event=None
+    ):
+
+        self.root.bind_all(
+            "<MouseWheel>",
+            self.on_mousewheel
+        )
+
+
+    # =====================================================
+    # Disable Mouse Wheel
+    # =====================================================
+
+    def disable_mousewheel(
+        self,
+        event=None
+    ):
+
+        self.root.unbind_all(
+            "<MouseWheel>"
+        )
     # =====================================================
     # Main UI
     # =====================================================
@@ -525,7 +874,7 @@ class ConverterGUI:
                 "result",
             ),
             show="tree headings",
-            height=7
+            height=5
         )
 
         self.job_tree.heading(
@@ -865,7 +1214,7 @@ class ConverterGUI:
 
         self.console = tk.Text(
             console_inner,
-            height=9,
+            height=6,
             wrap="word",
             bg="#101419",
             fg="#D7E0EA",
