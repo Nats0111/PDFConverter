@@ -1,6 +1,6 @@
 # Local Document Converter
 
-A local document processing tool built with Python and Tkinter.
+A local document processing tool built with Python and Tkinter, And it was made by vibe coding
 
 This project combines common PDF and document utilities into a simple Windows desktop application. Files are processed locally without relying on online conversion services.
 
