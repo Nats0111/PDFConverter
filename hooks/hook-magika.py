@@ -4,21 +4,8 @@ from PyInstaller.utils.hooks import (
     copy_metadata,
 )
 
+datas = collect_data_files("magika")
 
-datas = (
-    collect_data_files(
-        "magika"
-    )
-)
+datas += copy_metadata("magika")
 
-datas += (
-    copy_metadata(
-        "magika"
-    )
-)
-
-hiddenimports = (
-    collect_submodules(
-        "magika"
-    )
-)
+hiddenimports = collect_submodules("magika")

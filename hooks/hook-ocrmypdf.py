@@ -4,38 +4,25 @@ from PyInstaller.utils.hooks import (
     copy_metadata,
 )
 
-
 # =========================================================
 # Data
 # =========================================================
 
-datas = (
-    collect_data_files(
-        "ocrmypdf"
-    )
-)
+datas = collect_data_files("ocrmypdf")
 
 
 # =========================================================
 # Metadata
 # =========================================================
 
-datas += (
-    copy_metadata(
-        "ocrmypdf"
-    )
-)
+datas += copy_metadata("ocrmypdf")
 
 
 # =========================================================
 # Dynamic modules / plugins
 # =========================================================
 
-hiddenimports = (
-    collect_submodules(
-        "ocrmypdf"
-    )
-)
+hiddenimports = collect_submodules("ocrmypdf")
 
 
 hiddenimports += [

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+.venv/
+venv/
+env/
+
+# Linters / Caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# PyInstaller build artifacts
+build/
+dist/
+
+# Local runtime config, logs, and temp files
+settings.json
+Logs/
+Temp/
+
+# Local working input/output folders
+MD_Input/
+MD_Output/
+MD_Processed/
+Compress_Low_Input/
+Compress_Medium_Input/
+Compress_High_Input/
+Compress_Output/
+Image_to_PDF_Input/
+Image_to_PDF_Output/
+Merge_Output/
+Split_Output/
+OCR_Output/
+Scan_Output/
+
+# Portable external tools (optional per-machine binaries)
+tools/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

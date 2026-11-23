@@ -4,21 +4,8 @@ from PyInstaller.utils.hooks import (
     copy_metadata,
 )
 
+datas = collect_data_files("markitdown")
 
-datas = (
-    collect_data_files(
-        "markitdown"
-    )
-)
+datas += copy_metadata("markitdown")
 
-datas += (
-    copy_metadata(
-        "markitdown"
-    )
-)
-
-hiddenimports = (
-    collect_submodules(
-        "markitdown"
-    )
-)
+hiddenimports = collect_submodules("markitdown")

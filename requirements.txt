@@ -1,6 +1,7 @@
 Pillow
 pypdf
-markitdown
+markitdown[docx,pdf,pptx,xls,xlsx,outlook]
 ocrmypdf
 tkinterdnd2
+watchdog
 pyinstaller
